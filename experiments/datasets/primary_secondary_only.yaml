@@ -1,0 +1,14 @@
+dataset_name: primary_secondary_colors_1k_each
+image_size: 224
+colors:
+  - [255, 0, 0]
+  - [0, 255, 0]
+  - [0, 0, 255]
+  - [255, 255, 0]
+  - [255, 0, 255]
+  - [0, 255, 255]
+radius_range: [10, 50]
+n_images_per_color: 1000
+min_intensity: 0.1
+max_intensity: 1
+data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/"
