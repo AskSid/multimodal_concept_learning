@@ -21,11 +21,10 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.utils import set_seed
+from src.utils import set_seed, create_multimodal_transforms
 from src.multimodal.multimodal_training_config import MultimodalTrainingConfig
 from src.multimodal.mllm import MLLM
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset, MultimodalCollator
-from src.utils.transforms import create_multimodal_transforms
 
 
 def load_multimodal_dataset(config: MultimodalTrainingConfig):

@@ -15,12 +15,11 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.utils import set_seed
+from src.utils import set_seed, create_vision_transforms
 from src.vision.vision_training_config import VisionTrainingConfig
 from src.datasets.color.color_dataset import ColorDataset
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset
 from transformers import ViTForImageClassification, ViTConfig
-from src.utils.transforms import create_vision_transforms
 
 
 def load_split_datasets(
