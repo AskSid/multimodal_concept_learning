@@ -297,7 +297,7 @@ def main():
         kwargs_handlers=[ddp_kwargs],
         gradient_accumulation_steps=gradient_accumulation_steps,
         split_batches=config.split_batches,
-        mixed_precision=config.mixed_precision,
+        mixed_precision="bf16" if config.mixed_precision else "no",
     )
     
     # Set seed

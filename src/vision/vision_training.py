@@ -260,7 +260,7 @@ def main():
     if config.dataset_name == "color":
         train_dataset, val_dataset, test_dataset = load_split_datasets(
             ColorDataset,
-            mapping_dir=config.data_dir,
+            mapping_dir=config.mapping_dir,
             data_dir=config.data_dir,
             train_transform=train_transform,
             val_transform=val_transform,
@@ -269,7 +269,7 @@ def main():
     elif config.dataset_name == "imagenet100":
         train_dataset, val_dataset, test_dataset = load_split_datasets(
             ImageNetDataset,
-            mapping_dir="/users/sboppana/data/sboppana/data/multimodal_concept_learning/imagenet100",
+            mapping_dir=config.mapping_dir,
             data_dir=config.data_dir,
             train_transform=train_transform,
             val_transform=val_transform,
@@ -288,7 +288,8 @@ def main():
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=config.num_workers,
-        pin_memory=True
+        pin_memory=True,
+        prefetch_factor=config.prefetch_factor,
     )
     
     val_loader = DataLoader(
@@ -296,7 +297,8 @@ def main():
         batch_size=config.batch_size,
         shuffle=False,
         num_workers=config.num_workers,
-        pin_memory=True
+        pin_memory=True,
+        prefetch_factor=config.prefetch_factor,
     )
     
     test_loader = DataLoader(
@@ -304,7 +306,8 @@ def main():
         batch_size=config.batch_size,
         shuffle=False,
         num_workers=config.num_workers,
-        pin_memory=True
+        pin_memory=True,
+        prefetch_factor=config.prefetch_factor,
     )
 
     if accelerator.is_main_process:

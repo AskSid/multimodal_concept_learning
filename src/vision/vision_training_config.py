@@ -20,6 +20,7 @@ class VisionTrainingConfig:
     # Dataset parameters
     data_dir: str
     dataset_name: str
+    mapping_dir: str
     
     # Training parameters
     epochs: int
@@ -59,6 +60,7 @@ class VisionTrainingConfig:
             num_attention_heads=int(params.get("num_attention_heads", 8)),
             data_dir=params.get("data_dir", "/tmp/data"),
             dataset_name=params.get("dataset_name", "color"),
+            mapping_dir=params.get("mapping_dir", None),
             epochs=int(params.get("epochs", 300)),
             learning_rate=float(params.get("learning_rate", 1e-4)),
             batch_size=int(params.get("batch_size", 128)),
@@ -67,7 +69,7 @@ class VisionTrainingConfig:
             image_size=int(params.get("image_size", 224)),
             label_smoothing=float(params.get("label_smoothing", 0.0)),
             num_workers=int(params.get("num_workers", 8)),
-            prefetch_factor=params.get("prefetch_factor", 2),  # Not used in code
+            prefetch_factor=params.get("prefetch_factor", 2),
             results_dir=params.get("results_dir", "/tmp/results"),
             seed=int(params.get("seed", 42)),
             device=params.get("device", "cuda" if torch.cuda.is_available() else "cpu"),

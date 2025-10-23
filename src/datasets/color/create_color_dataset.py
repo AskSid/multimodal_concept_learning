@@ -141,6 +141,9 @@ def main():
     with open(args.config_path, "r") as f:
         config = ColorDatasetConfig.from_params(yaml.safe_load(f))
     
+    # Set seed for reproducibility
+    set_seed(42)
+    
     # Generate the dataset
     output_path = generate_color_dataset(config)
     print(f"Dataset generation completed. Output: {output_path}")
