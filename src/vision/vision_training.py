@@ -1,39 +1,57 @@
 import argparse
+import sys
 import os
 import torch
 import yaml
 import time
+import warnings
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import wandb
+from accelerate import Accelerator
+
+# Suppress pydantic warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.utils import set_seed
 from src.vision.vision_training_config import VisionTrainingConfig
-from src.datasets.color_dataset import ColorDataset
+from src.datasets.color.color_dataset import ColorDataset
+from src.datasets.imagenet.imagenet_dataset import ImageNetDataset
 from transformers import ViTForImageClassification, ViTConfig
 
 
 def create_transforms(config: VisionTrainingConfig, is_train: bool = True):
     """Create image transforms for training or validation."""
-    mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    
-    if is_train:
-        transform = transforms.Compose([
-            transforms.RandomResizedCrop(config.image_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
+    if config.dataset_name == "imagenet" or config.dataset_name == "imagenet100":
+        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet normalization
     else:
-        transform = transforms.Compose([
-            transforms.Resize((config.image_size, config.image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
+        mean, std = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]  # Default normalization
     
-    return transform
+    # Transform mapping dictionary
+    transform_map = {
+        "RandomResizedCrop": lambda: transforms.RandomResizedCrop(config.image_size),
+        "RandomHorizontalFlip": lambda: transforms.RandomHorizontalFlip(),
+        "Resize": lambda: transforms.Resize((config.image_size, config.image_size)),
+        "ToTensor": lambda: transforms.ToTensor(),
+        "Normalize": lambda: transforms.Normalize(mean, std)
+    }
+    
+    # Get transform list based on train/val
+    transform_list = config.train_transforms if is_train else config.val_transforms
+    
+    # Create transforms from the list
+    transform_objects = []
+    for transform_name in transform_list:
+        if transform_name in transform_map:
+            transform_objects.append(transform_map[transform_name]())
+        else:
+            raise ValueError(f"Unknown transform: {transform_name}")
+    
+    return transforms.Compose(transform_objects)
 
 def init_model(config: VisionTrainingConfig):
     """Initialize the model."""
@@ -53,10 +71,9 @@ def init_model(config: VisionTrainingConfig):
     else:
         raise ValueError(f"Model {config.model_name} not supported.")
     
-    model.to(config.device)
     return model
 
-def run_training(model: ViTForImageClassification, train_loader: DataLoader, val_loader: DataLoader, config: VisionTrainingConfig):
+def run_training(model: ViTForImageClassification, train_loader: DataLoader, val_loader: DataLoader, config: VisionTrainingConfig, accelerator: Accelerator):
     """Run the train/val loop."""
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=config.learning_rate * 0.01)
@@ -68,6 +85,9 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         criterion = torch.nn.CrossEntropyLoss()
     
     best_loss = float("inf")
+    
+    # Prepare model, optimizer, and dataloaders with accelerate
+    model, optimizer, train_loader, val_loader = accelerator.prepare(model, optimizer, train_loader, val_loader)
     
     # Initialize wandb if not disabled
     if not config.disable_wandb:
@@ -91,14 +111,12 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config.epochs} [Train]", disable=config.disable_tqdm)
         for batch_idx, (images, labels) in enumerate(train_pbar):
-            images, labels = images.to(config.device), labels.to(config.device)
-            
             outputs = model(images)
             loss = criterion(outputs.logits, labels)
             
             # Scale loss for gradient accumulation
             loss = loss / accumulation_steps
-            loss.backward()
+            accelerator.backward(loss)
             
             # Update weights only after accumulating gradients
             if (batch_idx + 1) % accumulation_steps == 0:
@@ -124,7 +142,6 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{config.epochs} [Val]", disable=config.disable_tqdm)
         with torch.no_grad():
             for images, labels in val_pbar:
-                images, labels = images.to(config.device), labels.to(config.device)
                 outputs = model(images)
                 loss = criterion(outputs.logits, labels)
                 val_loss += loss.item()
@@ -161,11 +178,12 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         }
         
         # Print metrics
-        print(f"Epoch {epoch+1}/{config.epochs} completed in {epoch_time:.2f}s")
-        print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
-        print(f"Learning Rate: {current_lr:.6f}")
-        print("-" * 50)
+        if accelerator.is_main_process:
+            print(f"Epoch {epoch+1}/{config.epochs} completed in {epoch_time:.2f}s")
+            print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+            print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%")
+            print(f"Learning Rate: {current_lr:.6f}")
+            print("-" * 50)
         
         # Log to wandb
         if not config.disable_wandb:
@@ -173,13 +191,14 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         
         scheduler.step()
     
-    print(f"Best val loss: {best_loss:.4f}")
+    if accelerator.is_main_process:
+        print(f"Best val loss: {best_loss:.4f}")
     torch.save(model.state_dict(), os.path.join(config.results_dir, "models", "final_model.pt"))
     
     if not config.disable_wandb:
         wandb.finish()
 
-def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, config: VisionTrainingConfig):
+def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, config: VisionTrainingConfig, accelerator: Accelerator):
     """Evaluate model on test set and return metrics."""
     model.eval()
     test_loss = 0.0
@@ -192,10 +211,12 @@ def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, co
     else:
         criterion = torch.nn.CrossEntropyLoss()
     
+    # Prepare test loader with accelerate
+    test_loader = accelerator.prepare(test_loader)
+    
     test_pbar = tqdm(test_loader, desc="Testing", disable=config.disable_tqdm)
     with torch.no_grad():
         for images, labels in test_pbar:
-            images, labels = images.to(config.device), labels.to(config.device)
             outputs = model(images)
             loss = criterion(outputs.logits, labels)
             test_loss += loss.item()
@@ -208,9 +229,10 @@ def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, co
     test_loss /= len(test_loader)
     test_acc = 100. * test_correct / test_total
     
-    print(f"Test Results:")
-    print(f"Test Loss: {test_loss:.4f}")
-    print(f"Test Accuracy: {test_acc:.2f}%")
+    if accelerator.is_main_process:
+        print(f"Test Results:")
+        print(f"Test Loss: {test_loss:.4f}")
+        print(f"Test Accuracy: {test_acc:.2f}%")
     
     return {
         'test_loss': test_loss,
@@ -218,6 +240,9 @@ def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, co
     }
 
 def main():
+    # Initialize accelerate
+    accelerator = Accelerator()
+    
     # load config
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", type=str, required=True)
@@ -266,6 +291,31 @@ def main():
         val_dataset = ColorDataset(config.data_dir, indices=val_idx, transform=val_transform)
         test_dataset = ColorDataset(config.data_dir, indices=test_idx, transform=val_transform)
         
+    elif config.dataset_name == "imagenet100":
+        # Use pre-split ImageNet-100 datasets
+        dataset_base_dir = "/users/sboppana/data/sboppana/data/multimodal_concept_learning/imagenet100"
+        
+        train_dataset = ImageNetDataset(
+            mapping_csv_path=os.path.join(dataset_base_dir, "train_mapping.csv"),
+            data_dir=config.data_dir,
+            transform=train_transform
+        )
+        
+        val_dataset = ImageNetDataset(
+            mapping_csv_path=os.path.join(dataset_base_dir, "val_mapping.csv"),
+            data_dir=config.data_dir,
+            transform=val_transform
+        )
+        
+        test_dataset = ImageNetDataset(
+            mapping_csv_path=os.path.join(dataset_base_dir, "test_mapping.csv"),
+            data_dir=config.data_dir,
+            transform=val_transform
+        )
+        
+        # Update num_labels from the dataset
+        config.num_labels = train_dataset.num_classes
+        
     else:
         raise ValueError(f"Dataset {config.dataset_name} not supported.")
     
@@ -294,7 +344,8 @@ def main():
         pin_memory=True
     )
 
-    print(f"Loaded {config.dataset_name} dataset with {len(train_dataset)} train samples, {len(val_dataset)} validation samples, and {len(test_dataset)} test samples.")
+    if accelerator.is_main_process:
+        print(f"Loaded {config.dataset_name} dataset with {len(train_dataset)} train samples, {len(val_dataset)} validation samples, and {len(test_dataset)} test samples.")
     
     # Create results directory
     os.makedirs(config.results_dir, exist_ok=True)
@@ -303,13 +354,14 @@ def main():
     model = init_model(config)
     
     # Run training
-    run_training(model, train_loader, val_loader, config)
+    run_training(model, train_loader, val_loader, config, accelerator)
     
     # Evaluate on test set
-    print("\n" + "="*50)
-    print("FINAL EVALUATION ON TEST SET")
-    print("="*50)
-    test_metrics = evaluate_model(model, test_loader, config)
+    if accelerator.is_main_process:
+        print("\n" + "="*50)
+        print("FINAL EVALUATION ON TEST SET")
+        print("="*50)
+    test_metrics = evaluate_model(model, test_loader, config, accelerator)
     
     # Log test metrics to wandb if enabled
     if not config.disable_wandb:

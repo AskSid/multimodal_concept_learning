@@ -1,0 +1,49 @@
+# ImageNet-100 Vision Training Experiment Configuration
+
+# Model architecture parameters
+model_name: "vit"
+hidden_size: 768
+intermediate_size: 3072
+num_hidden_layers: 12
+num_labels: 100  # 100 classes for ImageNet-100
+patch_size: 16
+hidden_dropout_prob: 0.1
+attention_dropout_prob: 0.1
+num_attention_heads: 12
+
+# Dataset parameters
+data_dir: "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet/train"
+dataset_name: "imagenet100"
+
+# Training parameters
+epochs: 100
+learning_rate: 1e-4
+batch_size: 64
+effective_batch_size: 1024
+weight_decay: 0.1
+image_size: 224
+label_smoothing: 0.1
+val_split: 0.0  # We have separate train/val/test splits
+num_workers: 8
+prefetch_factor: 2
+
+# Transforms
+train_transforms:
+  - "RandomResizedCrop"
+  - "RandomHorizontalFlip"
+  - "ToTensor"
+  - "Normalize"
+
+val_transforms:
+  - "Resize"
+  - "ToTensor"
+  - "Normalize"
+
+# Additional parameters
+seed: 42
+device: "cuda"
+results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/imagenet100"
+disable_tqdm: true
+disable_wandb: true
+wandb_project: "multimodal-concept-learning"
+wandb_run_name: "imagenet100-vit"

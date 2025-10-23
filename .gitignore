@@ -8,3 +8,6 @@ __pycache__/
 
 # Results and outputs
 results/
+
+# Wandb
+wandb/

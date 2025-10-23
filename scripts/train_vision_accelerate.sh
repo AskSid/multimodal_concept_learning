@@ -1,29 +1,33 @@
 #!/bin/bash
+#SBATCH --job-name=vision_training
+#SBATCH -p 3090-gcondo
+#SBATCH --gres=gpu:8
+#SBATCH --output=/dev/null
+#SBATCH --time=8:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH -N 1
 
 # Vision Training with Accelerate
 # Usage: ./scripts/train_vision_accelerate.sh <config_path>
-# Example: ./scripts/train_vision_accelerate.sh experiments/vision/vision_training_example.yaml
+# Example: sbatch ./scripts/train_vision_accelerate.sh experiments/vision/imagenet100.yaml
 
-set -e  # Exit on any error
-
-# Check if config path is provided
-if [ $# -eq 0 ]; then
-    echo "Usage: $0 <config_path>"
-    echo "Example: $0 experiments/vision/vision_training_example.yaml"
-    exit 1
-fi
+set -e
 
 CONFIG_PATH=$1
 
-# Check if config file exists
-if [ ! -f "$CONFIG_PATH" ]; then
-    echo "Error: Config file '$CONFIG_PATH' not found!"
-    exit 1
-fi
+# Extract results_dir from config file
+RESULTS_DIR=$(grep 'results_dir:' "$CONFIG_PATH" | sed 's/.*: *"\([^"]*\)".*/\1/')
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+# Ensure results directory exists
+mkdir -p "$RESULTS_DIR"
+
+# Redirect output to log.out in results directory
+exec > "$RESULTS_DIR/log.out" 2>&1
+
+# Set project root directory
+PROJECT_ROOT="/users/sboppana/data/sboppana/multimodal_concept_learning"
 
 # Change to project root directory
 cd "$PROJECT_ROOT"
@@ -33,10 +37,10 @@ echo "Config: $CONFIG_PATH"
 echo "Project root: $PROJECT_ROOT"
 echo "=========================================="
 
-# Run training with accelerate (no separate config file needed)
+source "$PROJECT_ROOT/.venv/bin/activate"
 accelerate launch \
-    --mixed_precision no \
-    --num_processes 1 \
+    --mixed_precision fp16 \
+    --num_processes 8 \
     --num_machines 1 \
     --machine_rank 0 \
     --main_process_port 29500 \

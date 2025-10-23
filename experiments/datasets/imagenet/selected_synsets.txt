@@ -1,0 +1,100 @@
+n00007846 person, individual, someone, somebody, mortal, soul
+n01428580 soft-finned fish, malacopterygian
+n01482330 shark
+n01529672 finch
+n01604330 bird of prey, raptor, raptorial bird
+n01629276 salamander
+n01639765 frog, toad, toad frog, anuran, batrachian, salientian
+n01662784 turtle
+n01752165 viper
+n01772222 spider
+n01789386 gallinaceous bird, gallinacean
+n01816887 parrot
+n01873982 metatherian
+n01909422 coelenterate, cnidarian
+n01942177 gastropod, univalve
+n01976957 crab
+n02008041 heron
+n02021795 seabird, sea bird, seafowl
+n02022684 shorebird, shore bird, limicoline bird
+n02085374 toy dog, toy
+n02096756 schnauzer
+n02099029 retriever
+n02100399 setter
+n02101108 spaniel
+n02106966 pinscher
+n02107420 Sennenhunde
+n02111626 spitz
+n02113335 poodle, poodle dog
+n02114100 wolf
+n02115335 wild dog
+n02118333 fox
+n02121620 cat, true cat
+n02127808 big cat, cat
+n02131653 bear
+n02164464 beetle
+n02274024 lepidopterous insect, lepidopteron, lepidopteran
+n02323902 leporid, leporid mammal
+n02329401 rodent, gnawer
+n02395003 swine
+n02401031 bovid
+n02470325 ape
+n02484473 Old World monkey, catarrhine
+n02552171 spiny-finned fish, acanthopterygian
+n02686568 aircraft
+n02778669 ball
+n02851099 blind, screen
+n02858304 boat
+n02862048 body armor, body armour, suit of armor, suit of armour, coat of mail, cataphract
+n02891788 brass, brass instrument
+n02898711 bridge, span
+n02924116 bus, autobus, coach, charabanc, double-decker, jitney, motorbus, motorcoach, omnibus, passenger vehicle
+n02970849 cart
+n03001627 chair
+n03057021 coat
+n03101986 cooking utensil, cookware
+n03206908 dish
+n03323703 fastener, fastening, holdfast, fixing
+n03380867 footwear, footgear
+n03467984 gun
+n03489162 hand tool
+n03497657 hat, chapeau, lid
+n03540267 hosiery, hose
+n03614532 keyboard instrument
+n03620052 kitchen appliance
+n03636248 lamp
+n03736970 mechanical device
+n03748162 mercantile establishment, retail store, sales outlet, outlet
+n03815615 necktie, tie
+n03839993 obstruction, obstructor, obstructer, impediment, impedimenta
+n03852280 optical instrument
+n03916720 peripheral, computer peripheral, peripheral device
+n03932203 piece
+n03985232 portable computer
+n04128837 sailing vessel, sailing ship
+n04151581 screen
+n04191943 shelter
+n04230808 skirt
+n04317420 stick
+n04359589 support
+n04361095 supporting structure
+n04371563 swimsuit, swimwear, bathing suit, swimming costume, bathing costume
+n04377057 system
+n04401088 telephone, phone, telephone set
+n04437953 timepiece, timekeeper, horologe
+n04447443 toiletry, toilet articles
+n04453910 top, cover
+n04464852 tracked vehicle
+n04520170 van
+n04580493 white goods
+n04598582 woodwind, woodwind instrument, wood
+n04608567 writing implement
+n07609840 dessert, sweet, afters
+n07622061 baked goods
+n07705931 edible fruit
+n07713395 cruciferous vegetable
+n07715561 squash
+n07809368 flavorer, flavourer, flavoring, flavouring, seasoner, seasoning
+n09287968 geological formation, formation
+n12992868 fungus
+n14940386 liquid

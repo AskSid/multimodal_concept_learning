@@ -1,12 +1,12 @@
 dataset_name: primary_secondary_colors_1k_each
 image_size: 224
 colors:
-  - [255, 0, 0]
-  - [0, 255, 0]
-  - [0, 0, 255]
-  - [255, 255, 0]
-  - [255, 0, 255]
-  - [0, 255, 255]
+  - [255, 0, 0] # red
+  - [0, 255, 0] # green
+  - [0, 0, 255] # blue
+  - [255, 255, 0] # yellow
+  - [255, 0, 255] # magenta
+  - [0, 255, 255] # cyan
 radius_range: [10, 50]
 n_images_per_color: 1000
 min_intensity: 0.1
