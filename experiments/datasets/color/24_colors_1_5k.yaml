@@ -1,0 +1,38 @@
+dataset_name: 24_colors_1_5k
+image_size: 224
+colors:
+  # Primary colors
+  - [255, 0, 0] # red
+  - [0, 255, 0] # green
+  - [0, 0, 255] # blue
+  # Secondary colors
+  - [255, 255, 0] # yellow
+  - [255, 0, 255] # magenta
+  - [0, 255, 255] # cyan
+  # First set of intermediate colors (6 colors between primary and secondary)
+  - [255, 128, 0] # orange (between red and yellow)
+  - [128, 255, 0] # lime (between yellow and green)
+  - [0, 255, 128] # spring green (between green and cyan)
+  - [0, 128, 255] # azure (between cyan and blue)
+  - [128, 0, 255] # violet (between blue and magenta)
+  - [255, 0, 128] # rose (between magenta and red)
+  # Second set of intermediate colors (6 more colors between the first intermediates)
+  - [255, 64, 0] # red-orange (between red and orange)
+  - [255, 192, 0] # orange-yellow (between orange and yellow)
+  - [192, 255, 0] # yellow-lime (between yellow and lime)
+  - [64, 255, 0] # lime-green (between lime and green)
+  - [0, 255, 64] # green-spring (between green and spring green)
+  - [0, 192, 255] # spring-azure (between spring green and azure)
+  - [0, 64, 255] # azure-blue (between azure and blue)
+  - [64, 0, 255] # blue-violet (between blue and violet)
+  - [192, 0, 255] # violet-magenta (between violet and magenta)
+  - [255, 0, 192] # magenta-rose (between magenta and rose)
+  - [255, 0, 64] # rose-red (between rose and red)
+  - [255, 64, 128] # intermediate between red and rose
+radius_range: [10, 50]
+n_images_per_color: 1500
+min_intensity: 1.0
+max_intensity: 1.0
+train_val_test_split: [0.8, 0.1, 0.1]
+seed: 42
+data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color"

@@ -1,0 +1,16 @@
+dataset_name: primary_secondary_colors_5k
+image_size: 224
+colors:
+  - [255, 0, 0] # red
+  - [0, 255, 0] # green
+  - [0, 0, 255] # blue
+  - [255, 255, 0] # yellow
+  - [255, 0, 255] # magenta
+  - [0, 255, 255] # cyan
+radius_range: [10, 50]
+n_images_per_color: 5000
+min_intensity: 1.0
+max_intensity: 1.0
+train_val_test_split: [0.8, 0.1, 0.1]
+seed: 42
+data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color"

@@ -6,6 +6,7 @@ import yaml
 from typing import Dict, List, Tuple
 
 from PIL import Image, ImageDraw
+from tqdm import tqdm
 from src.datasets.color.color_dataset_config import ColorDatasetConfig
 from src.utils import set_seed
 
@@ -46,6 +47,10 @@ def generate_color_dataset(config: ColorDatasetConfig) -> str:
     
     color_image_map: Dict[str, List[str]] = {}
 
+    # Create overall progress bar for all colors
+    total_images = len(config.colors) * config.n_images_per_color
+    overall_pbar = tqdm(total=total_images, desc="Generating color dataset", unit="images")
+
     for rgb in config.colors:
         # Create color directory with format r{R}g{G}b{B}
         color_name = f"r{rgb[0]}g{rgb[1]}b{rgb[2]}"
@@ -56,8 +61,15 @@ def generate_color_dataset(config: ColorDatasetConfig) -> str:
 
         color_image_map[color_name] = []
 
-        # Generate images for this color
-        for idx in range(config.n_images_per_color):
+        # Generate images for this color with progress bar
+        color_pbar = tqdm(
+            range(config.n_images_per_color), 
+            desc=f"Generating {color_name}", 
+            unit="images",
+            leave=False
+        )
+        
+        for idx in color_pbar:
             # Random intensity factor
             factor = random.uniform(config.min_intensity, config.max_intensity)
             
@@ -90,7 +102,14 @@ def generate_color_dataset(config: ColorDatasetConfig) -> str:
             img.save(img_path, format="PNG")
             relative_path = os.path.relpath(img_path, dataset_dir)
             color_image_map[color_name].append(relative_path)
+            
+            # Update progress bars
+            color_pbar.update(1)
+            overall_pbar.update(1)
+        
+        color_pbar.close()
 
+    overall_pbar.close()
     print(f"Generated {config.n_images_per_color} images for each of {len(config.colors)} colors.")
 
     # Prepare split ratios
@@ -121,7 +140,8 @@ def generate_color_dataset(config: ColorDatasetConfig) -> str:
         split_records["test"].extend((path, color_name) for path in test_split)
 
     # Write mapping CSVs
-    for split_name in split_names:
+    print("Creating train/val/test splits and CSV mappings...")
+    for split_name in tqdm(split_names, desc="Writing CSV files", unit="split"):
         mapping_path = os.path.join(dataset_dir, f"{split_name}_mapping.csv")
         with open(mapping_path, "w", newline="") as mapping_file:
             writer = csv.writer(mapping_file)

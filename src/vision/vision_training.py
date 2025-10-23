@@ -12,6 +12,8 @@ from accelerate import Accelerator
 
 # Suppress pydantic warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
+warnings.filterwarnings("ignore", category=Warning, module="pydantic._internal._generate_schema")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
