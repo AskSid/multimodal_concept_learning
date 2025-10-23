@@ -34,6 +34,11 @@ def create_transforms(config: VisionTrainingConfig, is_train: bool = True):
     transform_map = {
         "RandomResizedCrop": lambda: transforms.RandomResizedCrop(config.image_size),
         "RandomHorizontalFlip": lambda: transforms.RandomHorizontalFlip(),
+        "ColorJitter": lambda: transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+        "RandomRotation": lambda: transforms.RandomRotation(degrees=15),
+        "RandomAffine": lambda: transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0),
+        "RandomPerspective": lambda: transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
+        "RandomErasing": lambda: transforms.RandomErasing(p=0.25, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
         "Resize": lambda: transforms.Resize((config.image_size, config.image_size)),
         "ToTensor": lambda: transforms.ToTensor(),
         "Normalize": lambda: transforms.Normalize(mean, std)

@@ -18,20 +18,28 @@ dataset_name: "imagenet100"
 # Training parameters
 epochs: 100
 learning_rate: 1e-4
-batch_size: 64
-effective_batch_size: 1024
+batch_size: 128
+effective_batch_size: 4096
 weight_decay: 0.1
 image_size: 224
 label_smoothing: 0.1
 val_split: 0.0  # We have separate train/val/test splits
 num_workers: 8
 prefetch_factor: 2
+augreg_l: 2
+augreg_m: 10
+augreg_alpha: 0.2
 
 # Transforms
 train_transforms:
   - "RandomResizedCrop"
   - "RandomHorizontalFlip"
   - "ToTensor"
+  - "ColorJitter"
+  - "RandomRotation"
+  - "RandomAffine"
+  - "RandomPerspective"
+  - "RandomErasing"
   - "Normalize"
 
 val_transforms:

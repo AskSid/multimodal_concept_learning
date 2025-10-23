@@ -32,6 +32,8 @@ PROJECT_ROOT="/users/sboppana/data/sboppana/multimodal_concept_learning"
 # Change to project root directory
 cd "$PROJECT_ROOT"
 
+nvidia-smi
+
 echo "Starting vision training with accelerate..."
 echo "Config: $CONFIG_PATH"
 echo "Project root: $PROJECT_ROOT"
