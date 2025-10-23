@@ -6,7 +6,6 @@ import yaml
 import time
 import warnings
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from tqdm import tqdm
 import wandb
 from accelerate import Accelerator
@@ -21,41 +20,7 @@ from src.vision.vision_training_config import VisionTrainingConfig
 from src.datasets.color.color_dataset import ColorDataset
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset
 from transformers import ViTForImageClassification, ViTConfig
-
-
-def create_transforms(config: VisionTrainingConfig, is_train: bool = True):
-    """Create image transforms for training or validation."""
-    if config.dataset_name == "imagenet" or config.dataset_name == "imagenet100":
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet normalization
-    else:
-        mean, std = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]  # Default normalization
-    
-    # Transform mapping dictionary
-    transform_map = {
-        "RandomResizedCrop": lambda: transforms.RandomResizedCrop(config.image_size),
-        "RandomHorizontalFlip": lambda: transforms.RandomHorizontalFlip(),
-        "ColorJitter": lambda: transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
-        "RandomRotation": lambda: transforms.RandomRotation(degrees=15),
-        "RandomAffine": lambda: transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1), shear=0),
-        "RandomPerspective": lambda: transforms.RandomPerspective(distortion_scale=0.2, p=0.5),
-        "RandomErasing": lambda: transforms.RandomErasing(p=0.25, scale=(0.02, 0.33), ratio=(0.3, 3.3)),
-        "Resize": lambda: transforms.Resize((config.image_size, config.image_size)),
-        "ToTensor": lambda: transforms.ToTensor(),
-        "Normalize": lambda: transforms.Normalize(mean, std)
-    }
-    
-    # Get transform list based on train/val
-    transform_list = config.train_transforms if is_train else config.val_transforms
-    
-    # Create transforms from the list
-    transform_objects = []
-    for transform_name in transform_list:
-        if transform_name in transform_map:
-            transform_objects.append(transform_map[transform_name]())
-        else:
-            raise ValueError(f"Unknown transform: {transform_name}")
-    
-    return transforms.Compose(transform_objects)
+from src.utils.transforms import create_vision_transforms
 
 
 def load_split_datasets(
@@ -118,12 +83,14 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
     # Prepare model, optimizer, and dataloaders with accelerate
     model, optimizer, train_loader, val_loader = accelerator.prepare(model, optimizer, train_loader, val_loader)
     
-    # Initialize wandb if not disabled
-    if not config.disable_wandb:
+    log_to_wandb = not config.disable_wandb and accelerator.is_main_process
+
+    # Initialize wandb if requested on the main process
+    if log_to_wandb:
         wandb.init(
             project=config.wandb_project,
             name=config.wandb_run_name,
-            config=vars(config)
+            config=vars(config),
         )
     
     for epoch in range(config.epochs):
@@ -215,7 +182,7 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
             print("-" * 50)
         
         # Log to wandb
-        if not config.disable_wandb:
+        if log_to_wandb:
             wandb.log(metrics)
         
         scheduler.step()
@@ -223,8 +190,8 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
     if accelerator.is_main_process:
         print(f"Best val loss: {best_loss:.4f}")
     torch.save(model.state_dict(), os.path.join(config.results_dir, "models", "final_model.pt"))
-    
-    if not config.disable_wandb:
+
+    if log_to_wandb:
         wandb.finish()
 
 def evaluate_model(model: ViTForImageClassification, test_loader: DataLoader, config: VisionTrainingConfig, accelerator: Accelerator):
@@ -286,8 +253,8 @@ def main():
     set_seed(config.seed)
 
     # Create transforms
-    train_transform = create_transforms(config, is_train=True)
-    val_transform = create_transforms(config, is_train=False)
+    train_transform = create_vision_transforms(config, is_train=True)
+    val_transform = create_vision_transforms(config, is_train=False)
     
     # Load dataset
     if config.dataset_name == "color":
@@ -360,7 +327,7 @@ def main():
     test_metrics = evaluate_model(model, test_loader, config, accelerator)
     
     # Log test metrics to wandb if enabled
-    if not config.disable_wandb:
+    if not config.disable_wandb and accelerator.is_main_process:
         wandb.log(test_metrics)
 
 

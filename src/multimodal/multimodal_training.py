@@ -7,8 +7,8 @@ import time
 import warnings
 import json
 import pandas as pd
-from torch.utils.data import DataLoader
-from torchvision import transforms
+from torch.utils.data import DataLoader, Subset
+import tempfile
 from tqdm import tqdm
 import wandb
 from accelerate import Accelerator
@@ -25,6 +25,7 @@ from src.utils import set_seed
 from src.multimodal.multimodal_training_config import MultimodalTrainingConfig
 from src.multimodal.mllm import MLLM
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset, MultimodalCollator
+from src.utils.transforms import create_multimodal_transforms
 
 
 def load_multimodal_dataset(config: MultimodalTrainingConfig):
@@ -41,6 +42,9 @@ def load_multimodal_dataset(config: MultimodalTrainingConfig):
         df = pd.concat([df, extra_df], ignore_index=True)
         print(f"After concatenation, total rows: {len(df)}")
     
+    # Reset index to ensure subset indices align with dataset ordering
+    df = df.reset_index(drop=True)
+
     # Create train/val split
     train_idx, val_idx = train_test_split(
         df.index,
@@ -49,39 +53,35 @@ def load_multimodal_dataset(config: MultimodalTrainingConfig):
         shuffle=True,
         stratify=df['target_wnid'] if 'target_wnid' in df.columns else None
     )
-    
-    train_df = df.loc[train_idx].reset_index(drop=True)
-    val_df = df.loc[val_idx].reset_index(drop=True)
-    
-    print(f"Train set: {len(train_df)} rows, Val set: {len(val_df)} rows.")
-    
-    # Create datasets
-    train_dataset = ImageNetDataset(train_df, config.image_root, transform=None, return_synset=True)
-    val_dataset = ImageNetDataset(val_df, config.image_root, transform=None, return_synset=True)
+
+    print(f"Train set: {len(train_idx)} rows, Val set: {len(val_idx)} rows.")
+
+    # Persist combined mapping to a temporary CSV so the dataset API stays consistent
+    fd, combined_mapping_path = tempfile.mkstemp(suffix="_multimodal_mapping.csv")
+    os.close(fd)
+    df.to_csv(combined_mapping_path, index=False)
+
+    try:
+        full_dataset = ImageNetDataset(
+            combined_mapping_path,
+            config.image_root,
+            transform=None,
+            return_synset=True,
+        )
+    finally:
+        os.remove(combined_mapping_path)
+
+    # Use subsets to avoid rewriting the dataset implementation
+    train_dataset = Subset(full_dataset, train_idx.tolist())
+    val_dataset = Subset(full_dataset, val_idx.tolist())
+
+    # Propagate dataset metadata required downstream (e.g. for collator setup)
+    for subset in (train_dataset, val_dataset):
+        subset.unique_labels = full_dataset.unique_labels
+        subset.label_to_idx = full_dataset.label_to_idx
+        subset.num_classes = full_dataset.num_classes
     
     return train_dataset, val_dataset
-
-
-def create_transforms(config: MultimodalTrainingConfig, is_train: bool = True):
-    """Create image transforms for training or validation."""
-    if is_train:
-        transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-            transforms.RandomHorizontalFlip(0.5),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-    else:
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-    
-    return transform
-
 
 def init_model(config: MultimodalTrainingConfig):
     """Initialize the MLLM model."""
@@ -246,7 +246,7 @@ def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, 
             print("-" * 50)
         
         # Log to wandb
-        if config.use_wandb:
+        if config.use_wandb and accelerator.is_main_process:
             wandb.log(metrics)
     
     if accelerator.is_main_process:
@@ -257,7 +257,7 @@ def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, 
         unwrapped_model = accelerator.unwrap_model(model)
         torch.save(unwrapped_model.state_dict(), os.path.join(config.save_dir, "models", "final_model.pt"))
     
-    if config.use_wandb:
+    if config.use_wandb and accelerator.is_main_process:
         wandb.finish()
 
 
@@ -280,12 +280,21 @@ def evaluate_model(model: MLLM, test_loader: DataLoader, config: MultimodalTrain
                 )
                 test_loss += outputs.loss.item()
                 
-                # Calculate accuracy (simplified - in practice you'd need more sophisticated evaluation)
-                # This is a placeholder for proper multimodal evaluation
-                predictions = torch.argmax(outputs.logits, dim=-1)
+                # Evaluate answer token accuracy only
+                logits = outputs.logits
                 labels = batch["labels"]
-                correct_predictions += (predictions == labels).sum().item()
-                total_predictions += labels.size(0)
+                predicted_ids = torch.argmax(logits, dim=-1)
+
+                valid_mask = labels != -100
+                supervised_counts = valid_mask.sum(dim=1)
+                has_supervision = supervised_counts > 0
+
+                if has_supervision.any():
+                    token_matches = (predicted_ids == labels) & valid_mask
+                    correct_counts = token_matches.sum(dim=1)
+                    sample_correct = (correct_counts == supervised_counts) & has_supervision
+                    correct_predictions += sample_correct.sum().item()
+                    total_predictions += has_supervision.sum().item()
     
     test_loss /= len(test_loader)
     test_acc = 100. * correct_predictions / total_predictions if total_predictions > 0 else 0.0
@@ -302,14 +311,6 @@ def evaluate_model(model: MLLM, test_loader: DataLoader, config: MultimodalTrain
 
 
 def main():
-    # Initialize accelerate with DDP kwargs
-    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    accelerator = Accelerator(
-        kwargs_handlers=[ddp_kwargs],
-        gradient_accumulation_steps=1,  # Will be set from config
-        split_batches=True
-    )
-    
     # Load config
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_path", type=str, required=True)
@@ -318,13 +319,21 @@ def main():
     # Load config from YAML file
     with open(args.config_path, "r") as f:
         config = MultimodalTrainingConfig.from_params(yaml.safe_load(f))
+
+    # Initialize accelerate with configuration-driven settings
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = Accelerator(
+        kwargs_handlers=[ddp_kwargs],
+        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        split_batches=config.split_batches,
+    )
     
     # Set seed
     set_seed(config.seed)
     
     # Create transforms
-    train_transform = create_transforms(config, is_train=True)
-    val_transform = create_transforms(config, is_train=False)
+    train_transform = create_multimodal_transforms(config, is_train=True)
+    val_transform = create_multimodal_transforms(config, is_train=False)
     
     # Load dataset
     train_dataset, val_dataset = load_multimodal_dataset(config)
@@ -389,7 +398,7 @@ def main():
     test_metrics = evaluate_model(model, val_loader, config, accelerator)
     
     # Log test metrics to wandb if enabled
-    if config.use_wandb:
+    if config.use_wandb and accelerator.is_main_process:
         wandb.log(test_metrics)
 
 
