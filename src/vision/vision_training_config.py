@@ -29,7 +29,6 @@ class VisionTrainingConfig:
     weight_decay: float
     image_size: int
     label_smoothing: float
-    val_split: float
     num_workers: int
     prefetch_factor: int
     train_transforms: List[str]
@@ -66,7 +65,6 @@ class VisionTrainingConfig:
             weight_decay=float(params.get("weight_decay", 0.1)),
             image_size=int(params.get("image_size", 224)),
             label_smoothing=float(params.get("label_smoothing", 0.0)),
-            val_split=float(params.get("val_split", 0.1)),
             num_workers=int(params.get("num_workers", 8)),
             prefetch_factor=params.get("prefetch_factor", 2),  # Not used in code
             results_dir=params.get("results_dir", "/tmp/results"),
