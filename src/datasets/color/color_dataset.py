@@ -7,9 +7,10 @@ from PIL import Image
 
 
 class ColorDataset(torch.utils.data.Dataset):
-    def __init__(self, mapping_csv_path: str, data_dir: str, transform: Optional[Callable] = None):
+    def __init__(self, mapping_csv_path: str, data_dir: str, transform: Optional[Callable] = None, return_synset: bool = False):
         self.data_dir = data_dir
         self.transform = transform
+        self.return_synset = return_synset
 
         mapping_df = pd.read_csv(mapping_csv_path)
 
@@ -33,5 +34,9 @@ class ColorDataset(torch.utils.data.Dataset):
         image = Image.open(image_path).convert("RGB")
         if self.transform:
             image = self.transform(image)
-        label = self.label_to_idx[color_name]
-        return image, label
+        
+        if self.return_synset:
+            return image, color_name
+        else:
+            label = self.label_to_idx[color_name]
+            return image, label
