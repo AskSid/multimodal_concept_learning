@@ -1,5 +1,5 @@
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Union
 
 import numpy as np
 import torch
@@ -11,6 +11,9 @@ if TYPE_CHECKING:
     from src.vision.vision_training_config import VisionTrainingConfig
 
 
+_TransformSpec = Union[str, Dict[str, Any]]
+
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -20,91 +23,157 @@ def set_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def create_multimodal_transforms(
-    config: "MultimodalTrainingConfig",
-    is_train: bool = True,
-):
-    """Image transforms for multimodal training."""
+def _ensure_tuple(value: Any):
+    if isinstance(value, list):
+        return tuple(value)
+    return value
 
-    if is_train:
-        return transforms.Compose(
-            [
-                transforms.Resize((256, 256)),
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-                transforms.RandomHorizontalFlip(0.5),
-                transforms.ColorJitter(
-                    brightness=0.2,
-                    contrast=0.2,
-                    saturation=0.2,
-                    hue=0.1,
-                ),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                ),
-            ]
-        )
 
-    return transforms.Compose(
-        [
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225],
-            ),
-        ]
+def _resolve_mean_std(config, params: Dict[str, Any]):
+    mean = params.get("mean", getattr(config, "normalize_mean", None))
+    std = params.get("std", getattr(config, "normalize_std", None))
+
+    if mean is None or std is None:
+        dataset_name = getattr(config, "dataset_name", None)
+        if dataset_name in {"imagenet", "imagenet100", "imagenet_multimodal"}:
+            mean = [0.485, 0.456, 0.406]
+            std = [0.229, 0.224, 0.225]
+        else:
+            mean = [0.5, 0.5, 0.5]
+            std = [0.5, 0.5, 0.5]
+
+    return mean, std
+
+
+def _build_resize(config, params: Dict[str, Any]):
+    size = _ensure_tuple(params.get("size"))
+    if size is None:
+        size = getattr(config, "image_size", 224)
+    return transforms.Resize(size)
+
+
+def _build_random_resized_crop(config, params: Dict[str, Any]):
+    size = params.get("size")
+    if size is None:
+        size = getattr(config, "image_size", 224)
+    scale = params.get("scale")
+    ratio = params.get("ratio")
+    kwargs = {"size": size}
+    if scale is not None:
+        kwargs["scale"] = tuple(scale) if isinstance(scale, (list, tuple)) else scale
+    if ratio is not None:
+        kwargs["ratio"] = tuple(ratio) if isinstance(ratio, (list, tuple)) else ratio
+    return transforms.RandomResizedCrop(**kwargs)
+
+
+def _build_random_horizontal_flip(_config, params: Dict[str, Any]):
+    return transforms.RandomHorizontalFlip(p=params.get("p", 0.5))
+
+
+def _build_color_jitter(_config, params: Dict[str, Any]):
+    defaults = {
+        "brightness": 0.4,
+        "contrast": 0.4,
+        "saturation": 0.4,
+        "hue": 0.1,
+    }
+    defaults.update(params)
+    return transforms.ColorJitter(
+        brightness=defaults.get("brightness"),
+        contrast=defaults.get("contrast"),
+        saturation=defaults.get("saturation"),
+        hue=defaults.get("hue"),
     )
 
 
-def create_vision_transforms(
-    config: "VisionTrainingConfig",
+def _build_random_rotation(_config, params: Dict[str, Any]):
+    return transforms.RandomRotation(degrees=params.get("degrees", 15))
+
+
+def _build_random_affine(_config, params: Dict[str, Any]):
+    return transforms.RandomAffine(
+        degrees=params.get("degrees", 0),
+        translate=params.get("translate", (0.1, 0.1)),
+        scale=params.get("scale", (0.9, 1.1)),
+        shear=params.get("shear", 0),
+    )
+
+
+def _build_random_perspective(_config, params: Dict[str, Any]):
+    return transforms.RandomPerspective(
+        distortion_scale=params.get("distortion_scale", 0.2),
+        p=params.get("p", 0.5),
+    )
+
+
+def _build_random_erasing(_config, params: Dict[str, Any]):
+    return transforms.RandomErasing(
+        p=params.get("p", 0.25),
+        scale=params.get("scale", (0.02, 0.33)),
+        ratio=params.get("ratio", (0.3, 3.3)),
+    )
+
+
+def _build_to_tensor(_config, _params: Dict[str, Any]):
+    return transforms.ToTensor()
+
+
+def _build_normalize(config, params: Dict[str, Any]):
+    mean, std = _resolve_mean_std(config, params)
+    return transforms.Normalize(mean=mean, std=std)
+
+
+_TRANSFORM_FACTORIES = {
+    "Resize": _build_resize,
+    "RandomResizedCrop": _build_random_resized_crop,
+    "RandomHorizontalFlip": _build_random_horizontal_flip,
+    "ColorJitter": _build_color_jitter,
+    "RandomRotation": _build_random_rotation,
+    "RandomAffine": _build_random_affine,
+    "RandomPerspective": _build_random_perspective,
+    "RandomErasing": _build_random_erasing,
+    "ToTensor": _build_to_tensor,
+    "Normalize": _build_normalize,
+}
+
+
+def create_transforms(
+    config: Union["MultimodalTrainingConfig", "VisionTrainingConfig"],
     is_train: bool = True,
 ):
-    """Image transforms for vision-only training."""
+    """Create image transforms based on configuration-provided specs."""
 
-    if config.dataset_name in {"imagenet", "imagenet100"}:
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-    else:
-        mean, std = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+    transform_entries = getattr(
+        config,
+        "train_transforms" if is_train else "val_transforms",
+        None,
+    )
+    if not transform_entries:
+        raise ValueError("Transform list is empty or undefined in config.")
 
-    transform_map = {
-        "RandomResizedCrop": lambda: transforms.RandomResizedCrop(config.image_size),
-        "RandomHorizontalFlip": lambda: transforms.RandomHorizontalFlip(),
-        "ColorJitter": lambda: transforms.ColorJitter(
-            brightness=0.4,
-            contrast=0.4,
-            saturation=0.4,
-            hue=0.1,
-        ),
-        "RandomRotation": lambda: transforms.RandomRotation(degrees=15),
-        "RandomAffine": lambda: transforms.RandomAffine(
-            degrees=0,
-            translate=(0.1, 0.1),
-            scale=(0.9, 1.1),
-            shear=0,
-        ),
-        "RandomPerspective": lambda: transforms.RandomPerspective(
-            distortion_scale=0.2,
-            p=0.5,
-        ),
-        "RandomErasing": lambda: transforms.RandomErasing(
-            p=0.25,
-            scale=(0.02, 0.33),
-            ratio=(0.3, 3.3),
-        ),
-        "Resize": lambda: transforms.Resize((config.image_size, config.image_size)),
-        "ToTensor": lambda: transforms.ToTensor(),
-        "Normalize": lambda: transforms.Normalize(mean, std),
-    }
+    transform_params = getattr(config, "transform_params", {}) or {}
 
-    transform_list = config.train_transforms if is_train else config.val_transforms
+    transforms_to_apply = []
+    for entry in transform_entries:
+        if isinstance(entry, dict):
+            name = entry.get("name")
+            if not name:
+                raise ValueError("Transform dict entries must include a 'name' key.")
+            entry_params = {k: v for k, v in entry.items() if k != "name"}
+        elif isinstance(entry, str):
+            name = entry
+            entry_params = {}
+        else:
+            raise TypeError(
+                "Transform entries must be either strings or dictionaries with a 'name' key."
+            )
 
-    transform_objects = []
-    for transform_name in transform_list:
-        if transform_name not in transform_map:
-            raise ValueError(f"Unknown transform: {transform_name}")
-        transform_objects.append(transform_map[transform_name]())
+        factory = _TRANSFORM_FACTORIES.get(name)
+        if factory is None:
+            raise ValueError(f"Unknown transform: {name}")
 
-    return transforms.Compose(transform_objects)
+        params = dict(transform_params.get(name, {}))
+        params.update(entry_params)
+        transforms_to_apply.append(factory(config, params))
+
+    return transforms.Compose(transforms_to_apply)

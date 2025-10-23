@@ -18,30 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.utils import set_seed
-
-# Try to import create_multimodal_transforms, with fallback if it fails
-try:
-    from src.utils import create_multimodal_transforms
-except ImportError:
-    # Fallback: define the function locally if import fails
-    from torchvision import transforms
-    def create_multimodal_transforms(config, is_train=True):
-        """Image transforms for multimodal training."""
-        if is_train:
-            return transforms.Compose([
-                transforms.Resize((256, 256)),
-                transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-                transforms.RandomHorizontalFlip(0.5),
-                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])
-        return transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+from src.utils import set_seed, create_transforms
 from src.multimodal.multimodal_training_config import MultimodalTrainingConfig
 from src.multimodal.mllm import MLLM
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset, MultimodalCollator
@@ -327,8 +304,8 @@ def main():
     set_seed(config.seed)
     
     # Create transforms
-    train_transform = create_multimodal_transforms(config, is_train=True)
-    val_transform = create_multimodal_transforms(config, is_train=False)
+    train_transform = create_transforms(config, is_train=True)
+    val_transform = create_transforms(config, is_train=False)
     
     # Load dataset using pre-constructed splits
     # For now, assume ImageNet dataset - this can be made configurable later

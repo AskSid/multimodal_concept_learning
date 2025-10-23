@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
 import torch
 
 @dataclass
@@ -13,6 +13,7 @@ class MultimodalTrainingConfig:
     ood_labels_path: str
     prompt_template: str
     val_split: float
+    dataset_name: str
     
     # Model parameters
     vision_model_name: str
@@ -52,7 +53,13 @@ class MultimodalTrainingConfig:
     prefetch_factor: int
     pin_memory: bool
     persistent_workers: bool
-    
+    image_size: int
+    train_transforms: List[Union[str, Dict[str, Union[int, float, List[float], List[int]]]]]
+    val_transforms: List[Union[str, Dict[str, Union[int, float, List[float], List[int]]]]]
+    transform_params: Dict[str, Dict[str, Union[int, float, List[float], List[int]]]]
+    normalize_mean: Optional[List[float]]
+    normalize_std: Optional[List[float]]
+
     # Saving and logging
     save_dir: str
     run_name: str
@@ -83,6 +90,7 @@ class MultimodalTrainingConfig:
             ood_labels_path=params.get("ood_labels_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/separate_and_ood_separate_synsets.txt"),
             prompt_template=params.get("prompt_template", "Is a {class_name} in the image?"),
             val_split=float(params.get("val_split", 0.1)),
+            dataset_name=params.get("dataset_name", "imagenet_multimodal"),
             vision_model_name=params.get("vision_model_name", "google/vit-base-patch16-224-in21k"),
             language_model_name=params.get("language_model_name", "google/gemma-3-1b-it"),
             vision_path=params.get("vision_path", None),
@@ -114,6 +122,45 @@ class MultimodalTrainingConfig:
             prefetch_factor=int(params.get("prefetch_factor", 2)),
             pin_memory=bool(params.get("pin_memory", True)),
             persistent_workers=bool(params.get("persistent_workers", True)),
+            image_size=int(params.get("image_size", 224)),
+            train_transforms=params.get(
+                "train_transforms",
+                [
+                    {"name": "Resize", "size": [256, 256]},
+                    {
+                        "name": "RandomResizedCrop",
+                        "size": 224,
+                        "scale": [0.8, 1.0],
+                    },
+                    "RandomHorizontalFlip",
+                    {
+                        "name": "ColorJitter",
+                        "brightness": 0.2,
+                        "contrast": 0.2,
+                        "saturation": 0.2,
+                        "hue": 0.1,
+                    },
+                    "ToTensor",
+                    "Normalize",
+                ],
+            ),
+            val_transforms=params.get(
+                "val_transforms",
+                [
+                    {"name": "Resize", "size": [224, 224]},
+                    "ToTensor",
+                    "Normalize",
+                ],
+            ),
+            transform_params=params.get("transform_params", {}),
+            normalize_mean=params.get(
+                "normalize_mean",
+                [0.485, 0.456, 0.406],
+            ),
+            normalize_std=params.get(
+                "normalize_std",
+                [0.229, 0.224, 0.225],
+            ),
             save_dir=params.get("save_dir", "/users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal"),
             run_name=params.get("run_name", "mllm_imagenet100_ood"),
             save_every_epoch=bool(params.get("save_every_epoch", False)),
@@ -127,5 +174,3 @@ class MultimodalTrainingConfig:
             num_processes=params.get("num_processes", None),
             split_batches=bool(params.get("split_batches", True)),
         )
-
-
