@@ -260,7 +260,7 @@ def main():
     if config.dataset_name == "color":
         train_dataset, val_dataset, test_dataset = load_split_datasets(
             ColorDataset,
-            mapping_dir=config.mapping_dir,
+            mapping_dir=config.mapping_path,
             data_dir=config.data_dir,
             train_transform=train_transform,
             val_transform=val_transform,
@@ -269,7 +269,7 @@ def main():
     elif config.dataset_name == "imagenet100":
         train_dataset, val_dataset, test_dataset = load_split_datasets(
             ImageNetDataset,
-            mapping_dir=config.mapping_dir,
+            mapping_dir=config.mapping_path,
             data_dir=config.data_dir,
             train_transform=train_transform,
             val_transform=val_transform,

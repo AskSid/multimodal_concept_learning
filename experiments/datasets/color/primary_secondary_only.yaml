@@ -11,4 +11,5 @@ radius_range: [10, 50]
 n_images_per_color: 1000
 min_intensity: 0.1
 max_intensity: 1
+seed: 42
 data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/"

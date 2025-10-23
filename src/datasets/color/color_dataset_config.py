@@ -18,9 +18,10 @@ class ColorDatasetConfig:
     
     # Split parameters
     train_val_test_split: List[float]
-    
+
     # Output parameters
     data_dir: str
+    seed: int
     
     @classmethod
     def from_params(cls, params: Optional[dict]) -> "ColorDatasetConfig":
@@ -35,4 +36,5 @@ class ColorDatasetConfig:
             max_intensity=params.get("max_intensity", 0.95),
             train_val_test_split=params.get("train_val_test_split", [0.7, 0.15, 0.15]),
             data_dir=params.get("data_dir", "/users/sboppana/data/sboppana/data/multimodal_concept_learning/"),
+            seed=int(params.get("seed", 42)),
         )

@@ -5,7 +5,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from PIL import Image
 from typing import Optional, Callable, List
-from transformers import AutoTokenizer, AutoImageProcessor
+from transformers import AutoTokenizer
 
 
 class ImageNetDataset(Dataset):
@@ -64,13 +64,12 @@ class MultimodalCollator:
     
     def __init__(
         self,
-        image_processor: AutoImageProcessor,
         tokenizer: AutoTokenizer,
         num_vision_tokens: int,
         prompt_template: str = "Is a {class_name} in the image?",
         all_class_names: Optional[List[str]] = None,
+        image_processor=None,
     ):
-        self.image_processor = image_processor
         self.tokenizer = tokenizer
         self.num_vision_tokens = num_vision_tokens
         self.prompt_template = prompt_template
@@ -90,9 +89,7 @@ class MultimodalCollator:
         images, texts, label_token_ids = [], [], []
         
         for image, class_name in batch:
-            # Process image
-            image_tensor = self.image_processor(image, return_tensors="pt")["pixel_values"][0]
-            images.append(image_tensor)
+            images.append(image)
             
             # Generate prompt with random yes/no
             is_yes = random.random() < 0.5

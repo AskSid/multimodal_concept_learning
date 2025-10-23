@@ -14,6 +14,7 @@ num_attention_heads: 12
 # Dataset parameters
 data_dir: "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet"
 dataset_name: "imagenet100"
+mapping_path: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/imagenet100"
 
 # Training parameters
 epochs: 100

@@ -44,7 +44,7 @@ class MultimodalTrainingConfig:
     # Training settings
     seed: int
     device: str
-    mixed_precision: bool
+    mixed_precision: Optional[str]
     disable_tqdm: bool
     supervision_type: str
     
@@ -86,7 +86,7 @@ class MultimodalTrainingConfig:
         return cls(
             mapping_path=params.get("mapping_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/train_mapping.csv"),
             extra_mapping_path=params.get("extra_mapping_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/train_mapping_separate.csv"),
-            image_root=params.get("image_root", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet/train"),
+            image_root=params.get("image_root", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet"),
             ood_labels_path=params.get("ood_labels_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/separate_and_ood_separate_synsets.txt"),
             prompt_template=params.get("prompt_template", "Is a {class_name} in the image?"),
             val_split=float(params.get("val_split", 0.1)),
@@ -115,7 +115,7 @@ class MultimodalTrainingConfig:
             gradient_accumulation_steps=int(params.get("gradient_accumulation_steps", 1)),
             seed=int(params.get("seed", 42)),
             device=params.get("device", "cuda" if torch.cuda.is_available() else "cpu"),
-            mixed_precision=bool(params.get("mixed_precision", True)),
+            mixed_precision=params.get("mixed_precision", "bf16" if torch.cuda.is_available() else "no"),
             disable_tqdm=bool(params.get("disable_tqdm", True)),
             supervision_type=params.get("supervision_type", "answer_only"),
             num_workers=int(params.get("num_workers", 4)),

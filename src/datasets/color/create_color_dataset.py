@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 
 from PIL import Image, ImageDraw
 from src.datasets.color.color_dataset_config import ColorDatasetConfig
+from src.utils import set_seed
 
 
 def compute_split_counts(num_items: int, ratios: List[float]) -> List[int]:
@@ -35,6 +36,8 @@ def compute_split_counts(num_items: int, ratios: List[float]) -> List[int]:
 
 def generate_color_dataset(config: ColorDatasetConfig) -> str:
     """Generate a color dataset with circles of different colors, positions, and radii."""
+    set_seed(config.seed)
+
     # Create output directory structure
     dataset_dir = os.path.join(config.data_dir, config.dataset_name)
     os.makedirs(dataset_dir, exist_ok=True)
@@ -140,9 +143,6 @@ def main():
     
     with open(args.config_path, "r") as f:
         config = ColorDatasetConfig.from_params(yaml.safe_load(f))
-    
-    # Set seed for reproducibility
-    set_seed(42)
     
     # Generate the dataset
     output_path = generate_color_dataset(config)

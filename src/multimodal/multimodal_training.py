@@ -297,7 +297,7 @@ def main():
         kwargs_handlers=[ddp_kwargs],
         gradient_accumulation_steps=gradient_accumulation_steps,
         split_batches=config.split_batches,
-        mixed_precision="bf16" if config.mixed_precision else "no",
+        mixed_precision=config.mixed_precision,
     )
     
     # Set seed
@@ -336,7 +336,6 @@ def main():
     
     # Create collator
     collator = MultimodalCollator(
-        image_processor=model.image_processor,
         tokenizer=model.tokenizer,
         num_vision_tokens=config.num_vision_tokens,
         prompt_template=config.prompt_template,

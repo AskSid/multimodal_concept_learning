@@ -12,6 +12,7 @@ num_attention_heads: 8
 # Dataset parameters
 data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color/primary_secondary_colors_1k_each"
 dataset_name: color
+mapping_path: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color/primary_secondary_colors_1k_each"
 
 # Training parameters
 epochs: 10
