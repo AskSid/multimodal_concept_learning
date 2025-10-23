@@ -5,9 +5,8 @@ import torch
 import yaml
 import time
 import warnings
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from torchvision import transforms
-from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import wandb
 from accelerate import Accelerator
@@ -52,6 +51,31 @@ def create_transforms(config: VisionTrainingConfig, is_train: bool = True):
             raise ValueError(f"Unknown transform: {transform_name}")
     
     return transforms.Compose(transform_objects)
+
+
+def load_split_datasets(
+    dataset_cls,
+    mapping_dir: str,
+    data_dir: str,
+    train_transform,
+    val_transform,
+):
+    mapping_paths = {
+        "train": os.path.join(mapping_dir, "train_mapping.csv"),
+        "val": os.path.join(mapping_dir, "val_mapping.csv"),
+        "test": os.path.join(mapping_dir, "test_mapping.csv"),
+    }
+
+    for split_name, mapping_path in mapping_paths.items():
+        if not os.path.exists(mapping_path):
+            raise FileNotFoundError(f"Missing {split_name} mapping CSV at {mapping_path}")
+
+    train_dataset = dataset_cls(mapping_paths["train"], data_dir, transform=train_transform)
+    val_dataset = dataset_cls(mapping_paths["val"], data_dir, transform=val_transform)
+    test_dataset = dataset_cls(mapping_paths["test"], data_dir, transform=val_transform)
+
+    return train_dataset, val_dataset, test_dataset
+
 
 def init_model(config: VisionTrainingConfig):
     """Initialize the model."""
@@ -262,63 +286,30 @@ def main():
     
     # Load dataset
     if config.dataset_name == "color":
-        # First, get the actual size by loading all data
-        temp_dataset = []
-        if os.path.exists(config.data_dir):
-            color_dirs = os.listdir(config.data_dir)
-            for color_dir in color_dirs:
-                color_path = os.path.join(config.data_dir, color_dir)
-                if os.path.isdir(color_path):
-                    color_name = color_dir
-                    images = os.listdir(color_path)
-                    temp_dataset.extend([(os.path.join(color_path, image), color_name) for image in images])
-        
-        actual_size = len(temp_dataset)
-        
-        # Split into train/val/test
-        indices = list(range(actual_size))
-        labels = [temp_dataset[i][1] for i in indices]
-        
-        # First split: train+val vs test
-        train_val_idx, test_idx = train_test_split(indices, test_size=0.2, random_state=config.seed, stratify=labels)
-        
-        # Second split: train vs val from train+val
-        train_val_labels = [labels[i] for i in train_val_idx]
-        train_idx, val_idx = train_test_split(train_val_idx, test_size=config.val_split, random_state=config.seed, stratify=train_val_labels)
-        
-        # Create datasets
-        train_dataset = ColorDataset(config.data_dir, indices=train_idx, transform=train_transform)
-        val_dataset = ColorDataset(config.data_dir, indices=val_idx, transform=val_transform)
-        test_dataset = ColorDataset(config.data_dir, indices=test_idx, transform=val_transform)
-        
+        train_dataset, val_dataset, test_dataset = load_split_datasets(
+            ColorDataset,
+            mapping_dir=config.data_dir,
+            data_dir=config.data_dir,
+            train_transform=train_transform,
+            val_transform=val_transform,
+        )
+
     elif config.dataset_name == "imagenet100":
-        # Use pre-split ImageNet-100 datasets
-        dataset_base_dir = "/users/sboppana/data/sboppana/data/multimodal_concept_learning/imagenet100"
-        
-        train_dataset = ImageNetDataset(
-            mapping_csv_path=os.path.join(dataset_base_dir, "train_mapping.csv"),
+        train_dataset, val_dataset, test_dataset = load_split_datasets(
+            ImageNetDataset,
+            mapping_dir="/users/sboppana/data/sboppana/data/multimodal_concept_learning/imagenet100",
             data_dir=config.data_dir,
-            transform=train_transform
+            train_transform=train_transform,
+            val_transform=val_transform,
         )
-        
-        val_dataset = ImageNetDataset(
-            mapping_csv_path=os.path.join(dataset_base_dir, "val_mapping.csv"),
-            data_dir=config.data_dir,
-            transform=val_transform
-        )
-        
-        test_dataset = ImageNetDataset(
-            mapping_csv_path=os.path.join(dataset_base_dir, "test_mapping.csv"),
-            data_dir=config.data_dir,
-            transform=val_transform
-        )
-        
-        # Update num_labels from the dataset
-        config.num_labels = train_dataset.num_classes
-        
+
     else:
         raise ValueError(f"Dataset {config.dataset_name} not supported.")
-    
+
+    if hasattr(train_dataset, "num_classes"):
+        config.num_labels = train_dataset.num_classes
+
+
     # Create DataLoaders
     train_loader = DataLoader(
         train_dataset,

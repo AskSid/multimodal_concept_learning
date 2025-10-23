@@ -1,32 +1,29 @@
 import os
-from typing import List, Optional, Callable
+from typing import Optional, Callable
 
+import pandas as pd
 import torch
 from PIL import Image
 
 
 class ColorDataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir: str, indices: List[int], transform: Optional[Callable] = None):
+    def __init__(self, mapping_csv_path: str, data_dir: str, transform: Optional[Callable] = None):
         self.data_dir = data_dir
         self.transform = transform
+
+        mapping_df = pd.read_csv(mapping_csv_path)
+
         self.dataset = []
-        
-        # Load all images directly from the dataset directory
-        if os.path.exists(data_dir):
-            color_dirs = os.listdir(data_dir)
-            for color_dir in color_dirs:
-                color_path = os.path.join(data_dir, color_dir)
-                if os.path.isdir(color_path):  # Only process directories
-                    color_name = color_dir
-                    images = os.listdir(color_path)
-                    self.dataset.extend([(os.path.join(color_path, image), color_name) for image in images])
-        
-        # Create label mapping
-        self.unique_labels = sorted(list(set([item[1] for item in self.dataset])))
+        for _, row in mapping_df.iterrows():
+            image_path = os.path.join(self.data_dir, row["image_path"])
+            color_name = row["color_name"]
+            self.dataset.append((image_path, color_name))
+
+        self.unique_labels = sorted({item[1] for item in self.dataset})
         self.label_to_idx = {label: idx for idx, label in enumerate(self.unique_labels)}
-        
-        # Filter the dataset using the indices
-        self.dataset = [self.dataset[i] for i in indices]
+        self.num_classes = len(self.unique_labels)
+
+        print(f"Loaded {len(self.dataset)} images with {self.num_classes} classes")
 
     def __len__(self):
         return len(self.dataset)
