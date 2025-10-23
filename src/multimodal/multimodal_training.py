@@ -6,14 +6,11 @@ import yaml
 import time
 import warnings
 import json
-import pandas as pd
-from torch.utils.data import DataLoader, Subset
-import tempfile
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
 from accelerate import Accelerator
 from accelerate import DistributedDataParallelKwargs
-from sklearn.model_selection import train_test_split
 from transformers import get_linear_schedule_with_warmup
 
 # Suppress pydantic warnings
@@ -50,60 +47,31 @@ from src.multimodal.mllm import MLLM
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset, MultimodalCollator
 
 
-def load_multimodal_dataset(config: MultimodalTrainingConfig):
-    """Load multimodal dataset with train/val split."""
-    # Load main mapping
-    df = pd.read_csv(config.mapping_path)
-    print(f"Loaded main mapping from {config.mapping_path} with {len(df)} rows.")
-    
-    # Load extra mapping if provided
-    if config.extra_mapping_path and os.path.exists(config.extra_mapping_path):
-        print(f"Loading extra mapping from {config.extra_mapping_path}")
-        extra_df = pd.read_csv(config.extra_mapping_path)
-        print(f"Loaded extra mapping with {len(extra_df)} rows.")
-        df = pd.concat([df, extra_df], ignore_index=True)
-        print(f"After concatenation, total rows: {len(df)}")
-    
-    # Reset index to ensure subset indices align with dataset ordering
-    df = df.reset_index(drop=True)
+def load_split_datasets(
+    dataset_cls,
+    mapping_dir: str,
+    data_dir: str,
+    train_transform,
+    val_transform,
+):
+    """Load train/val/test datasets using pre-constructed splits."""
+    mapping_paths = {
+        "train": os.path.join(mapping_dir, "train_mapping.csv"),
+        "val": os.path.join(mapping_dir, "val_mapping.csv"),
+        "test": os.path.join(mapping_dir, "test_mapping.csv"),
+    }
 
-    # Create train/val split
-    train_idx, val_idx = train_test_split(
-        df.index,
-        test_size=config.val_split,
-        random_state=config.seed,
-        shuffle=True,
-        stratify=df['target_wnid'] if 'target_wnid' in df.columns else None
-    )
+    for split_name, mapping_path in mapping_paths.items():
+        if not os.path.exists(mapping_path):
+            raise FileNotFoundError(f"Missing {split_name} mapping CSV at {mapping_path}")
 
-    print(f"Train set: {len(train_idx)} rows, Val set: {len(val_idx)} rows.")
+    train_dataset = dataset_cls(mapping_paths["train"], data_dir, transform=train_transform, return_synset=True)
+    val_dataset = dataset_cls(mapping_paths["val"], data_dir, transform=val_transform, return_synset=True)
+    test_dataset = dataset_cls(mapping_paths["test"], data_dir, transform=val_transform, return_synset=True)
 
-    # Persist combined mapping to a temporary CSV so the dataset API stays consistent
-    fd, combined_mapping_path = tempfile.mkstemp(suffix="_multimodal_mapping.csv")
-    os.close(fd)
-    df.to_csv(combined_mapping_path, index=False)
+    return train_dataset, val_dataset, test_dataset
 
-    try:
-        full_dataset = ImageNetDataset(
-            combined_mapping_path,
-            config.image_root,
-            transform=None,
-            return_synset=True,
-        )
-    finally:
-        os.remove(combined_mapping_path)
 
-    # Use subsets to avoid rewriting the dataset implementation
-    train_dataset = Subset(full_dataset, train_idx.tolist())
-    val_dataset = Subset(full_dataset, val_idx.tolist())
-
-    # Propagate dataset metadata required downstream (e.g. for collator setup)
-    for subset in (train_dataset, val_dataset):
-        subset.unique_labels = full_dataset.unique_labels
-        subset.label_to_idx = full_dataset.label_to_idx
-        subset.num_classes = full_dataset.num_classes
-    
-    return train_dataset, val_dataset
 
 def init_model(config: MultimodalTrainingConfig):
     """Initialize the MLLM model."""
@@ -342,12 +310,17 @@ def main():
     with open(args.config_path, "r") as f:
         config = MultimodalTrainingConfig.from_params(yaml.safe_load(f))
 
+    # Calculate gradient accumulation steps from effective batch size
+    assert config.effective_batch_size % config.batch_size == 0, f"effective_batch_size ({config.effective_batch_size}) must be divisible by batch_size ({config.batch_size})"
+    gradient_accumulation_steps = config.effective_batch_size // config.batch_size
+    
     # Initialize accelerate with configuration-driven settings
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     accelerator = Accelerator(
         kwargs_handlers=[ddp_kwargs],
-        gradient_accumulation_steps=config.gradient_accumulation_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
         split_batches=config.split_batches,
+        mixed_precision=config.mixed_precision,
     )
     
     # Set seed
@@ -357,11 +330,18 @@ def main():
     train_transform = create_multimodal_transforms(config, is_train=True)
     val_transform = create_multimodal_transforms(config, is_train=False)
     
-    # Load dataset
-    train_dataset, val_dataset = load_multimodal_dataset(config)
+    # Load dataset using pre-constructed splits
+    # For now, assume ImageNet dataset - this can be made configurable later
+    train_dataset, val_dataset, test_dataset = load_split_datasets(
+        ImageNetDataset,
+        mapping_dir=os.path.dirname(config.mapping_path),  # Extract mapping directory from mapping_path
+        data_dir=config.image_root,
+        train_transform=train_transform,
+        val_transform=val_transform,
+    )
     
     if accelerator.is_main_process:
-        print(f"Loaded multimodal dataset with {len(train_dataset)} train samples and {len(val_dataset)} validation samples.")
+        print(f"Loaded multimodal dataset with {len(train_dataset)} train samples, {len(val_dataset)} validation samples, and {len(test_dataset)} test samples.")
     
     # Create results directory
     os.makedirs(config.save_dir, exist_ok=True)

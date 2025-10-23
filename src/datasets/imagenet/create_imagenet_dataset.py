@@ -131,7 +131,9 @@ def harvest_train_images(train_dir: str, target_synsets: List[str], parent_to_ch
             leaf_dir = os.path.join(train_dir, leaf_synset)
             if os.path.exists(leaf_dir):
                 images = glob.glob(os.path.join(leaf_dir, "*.JPEG"))
-                all_images.extend([os.path.relpath(img, train_dir) for img in images])
+                # Store relative path from the base data directory (same as val_dir)
+                base_data_dir = os.path.dirname(train_dir)  # This gives us /path/to/imagenet/
+                all_images.extend([os.path.relpath(img, base_data_dir) for img in images])
         
         if all_images:
             synset_images[target_synset] = all_images
@@ -171,7 +173,10 @@ def harvest_test_images(val_dir: str, val_ground_truth_file: str, target_synsets
             wnid = ilsvrc_to_wnid[gt_id]
             if wnid in leaf_to_target:
                 target_synset = leaf_to_target[wnid]
-                synset_images[target_synset].append(os.path.basename(img_path))
+                # Store relative path from the base data directory instead of just basename
+                # We need to go up one level from val_dir to get to the base imagenet directory
+                base_data_dir = os.path.dirname(val_dir)  # This gives us /path/to/imagenet/
+                synset_images[target_synset].append(os.path.relpath(img_path, base_data_dir))
     
     return synset_images
 

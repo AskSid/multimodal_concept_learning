@@ -102,6 +102,7 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
         train_total = 0
         
         # Calculate gradient accumulation steps
+        assert config.effective_batch_size % config.batch_size == 0, f"effective_batch_size ({config.effective_batch_size}) must be divisible by batch_size ({config.batch_size})"
         accumulation_steps = config.effective_batch_size // config.batch_size
         
         train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config.epochs} [Train]", disable=config.disable_tqdm)
