@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.utils import set_seed, create_vision_transforms
+from src.utils import set_seed, create_transforms
 from src.vision.vision_training_config import VisionTrainingConfig
 from src.datasets.color.color_dataset import ColorDataset
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset
@@ -252,8 +252,8 @@ def main():
     set_seed(config.seed)
 
     # Create transforms
-    train_transform = create_vision_transforms(config, is_train=True)
-    val_transform = create_vision_transforms(config, is_train=False)
+    train_transform = create_transforms(config, is_train=True)
+    val_transform = create_transforms(config, is_train=False)
     
     # Load dataset
     if config.dataset_name == "color":

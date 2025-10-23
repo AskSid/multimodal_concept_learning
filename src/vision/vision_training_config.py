@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, List
+from typing import Optional, List, Dict, Union
 import torch
 
 @dataclass
@@ -31,8 +31,9 @@ class VisionTrainingConfig:
     label_smoothing: float
     num_workers: int
     prefetch_factor: int
-    train_transforms: List[str]
-    val_transforms: List[str]
+    train_transforms: List[Union[str, Dict[str, Union[int, float, List[float], List[int]]]]]
+    val_transforms: List[Union[str, Dict[str, Union[int, float, List[float], List[int]]]]]
+    transform_params: Dict[str, Dict[str, Union[int, float, List[float], List[int]]]]
     
     # Additional parameters
     seed: int
@@ -74,6 +75,7 @@ class VisionTrainingConfig:
             disable_wandb=bool(params.get("disable_wandb", False)),
             train_transforms=params.get("train_transforms", ["RandomResizedCrop", "RandomHorizontalFlip", "ToTensor", "Normalize"]),
             val_transforms=params.get("val_transforms", ["Resize", "ToTensor", "Normalize"]),
+            transform_params=params.get("transform_params", {}),
             wandb_project=params.get("wandb_project", None),
             wandb_run_name=params.get("wandb_run_name", None),
         )
