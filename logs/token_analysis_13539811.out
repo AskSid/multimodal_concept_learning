@@ -1,0 +1,56 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 13539811
+##  Job Name : token_analysis
+##  Nodelist : gpu2002
+##      CPUs : 
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/epavlick/sboppana/multimodal_concept_learning
+##   Job Started : Fri Oct 24 11:50:44 AM EDT 2025
+###############################################################################
+Loading embeddings from: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/primary_secondary_5k
+Saving plots to: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/primary_secondary_5k/token_analysis
+Loaded saved tokenizer with vocabulary size: 262148
+Loaded initial model embeddings: torch.Size([262148, 1152])
+Loaded epoch 0 embeddings: torch.Size([262148, 1152])
+Loaded epoch 1 embeddings: torch.Size([262148, 1152])
+Loaded epoch 2 embeddings: torch.Size([262148, 1152])
+Loaded epoch 3 embeddings: torch.Size([262148, 1152])
+Loaded epoch 4 embeddings: torch.Size([262148, 1152])
+Loaded epoch 5 embeddings: torch.Size([262148, 1152])
+Loaded epoch 6 embeddings: torch.Size([262148, 1152])
+Loaded epoch 7 embeddings: torch.Size([262148, 1152])
+Loaded epoch 8 embeddings: torch.Size([262148, 1152])
+Loaded epoch 9 embeddings: torch.Size([262148, 1152])
+Total loaded 11 embedding matrices
+Found 3 OOD tokens and 3 regular tokens in labels mapping
+OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>']
+Tokenizer vocabulary size: 262148
+Regular tokens: 3
+OOD tokens: 3
+
+=== Token Analysis ===
+Total vocabulary size: 262148
+Regular tokens: 3
+OOD tokens: 3
+
+Sample regular tokens: ['red', 'green', 'blue']
+
+Sample OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>']
+
+OOD token IDs: [262145, 262146, 262147]
+Regular token IDs: [1192, 10671, 9503]...
+Analyzing 6 tokens across 11 epochs
+initial: (6, 1152)
+epoch_0: (6, 1152)
+epoch_1: (6, 1152)
+epoch_2: (6, 1152)
+epoch_3: (6, 1152)
+epoch_4: (6, 1152)
+epoch_5: (6, 1152)
+epoch_6: (6, 1152)
+epoch_7: (6, 1152)
+epoch_8: (6, 1152)
+epoch_9: (6, 1152)
+
+Applying PCA downscaling to 32 dimensions...
+Token embedding analysis completed at Fri Oct 24 11:52:43 AM EDT 2025

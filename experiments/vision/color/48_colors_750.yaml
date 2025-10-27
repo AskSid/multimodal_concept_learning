@@ -24,7 +24,7 @@ image_size: 224
 label_smoothing: 0.0
 num_workers: 4
 prefetch_factor: 2
-results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/vision/48_colors_750"
+results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/vision/color/48_colors_750"
 
 # Transform configurations
 train_transforms: ["ToTensor"]
@@ -34,7 +34,7 @@ transform_params: {}
 # Additional parameters
 seed: 42
 device: "cuda"
-disable_tqdm: false
+disable_tqdm: true
 disable_wandb: true
 wandb_project: "multimodal_concept_learning"
 wandb_run_name: "vision_48_colors_750"

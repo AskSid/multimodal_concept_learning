@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
+import json
 from transformers import (
     ViTModel,
     AutoTokenizer,
     AutoModelForCausalLM,
-    AutoImageProcessor,
 )
 from typing import List, Optional, Union
 from PIL import Image
@@ -19,6 +19,7 @@ class MLLM(torch.nn.Module):
         language_model_name: str = "google/gemma-3-1b-it",
         vision_path: Optional[str] = None,
         num_vision_tokens: int = 197,
+        labels_mapping_path: Optional[str] = None,
     ):
         super().__init__()
         
@@ -38,15 +39,33 @@ class MLLM(torch.nn.Module):
             language_model_name, **model_kwargs
         )
         
-        # Load tokenizer and image processor
+        # Load tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             language_model_name, use_fast=True
         )
-        self.image_processor = AutoImageProcessor.from_pretrained(vision_model_name)
         
         # Set pad token if not exists
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        
+        # Load labels mapping and add OOD tokens if provided
+        self.labels_mapping = None
+        if labels_mapping_path is not None:
+            with open(labels_mapping_path, 'r') as f:
+                self.labels_mapping = json.load(f)
+            
+            # Extract OOD tokens (those starting with "<ood")
+            ood_tokens = [label for label in self.labels_mapping.values() if label.startswith("<ood")]
+            
+            if ood_tokens:
+                # Add OOD tokens to tokenizer
+                self.tokenizer.add_tokens(ood_tokens)
+                # Resize language model embeddings to accommodate new tokens
+                self.language_model.resize_token_embeddings(len(self.tokenizer))
+                
+                # Initialize new token embeddings by copying from existing tokens
+                new_embeddings = self.language_model.get_input_embeddings()
+                new_embeddings.weight.data[-len(ood_tokens):] = new_embeddings.weight.data[:len(ood_tokens)].clone()
         
         # Projector to align vision and language embeddings
         self.projector = nn.Linear(
@@ -108,55 +127,40 @@ class MLLM(torch.nn.Module):
             )
             return vision_outputs.last_hidden_state
     
-    
-    def set_trainable_params(
-        self,
-        trainable_vision_layers: List[int] = None,
-        trainable_language_layers: List[int] = None,
-        trainable_language_embeddings: bool = True,
-        trainable_projector: bool = True,
-    ):
-        """Set which parameters are trainable."""
-        # Freeze all parameters first
-        for p in self.parameters():
-            p.requires_grad = False
+    def set_trainable_params(self, trainable_params_setting: str):
+        """Set trainable parameters based on the specified setting.
         
-        # Unfreeze vision layers
-        if trainable_vision_layers is not None:
-            total_vision_layers = len(self.vision_model.encoder.layer)
-            for layer_idx in range(total_vision_layers):
-                if layer_idx in trainable_vision_layers:
-                    for p in self.vision_model.encoder.layer[layer_idx].parameters():
-                        p.requires_grad = True
+        Args:
+            trainable_params_setting: One of "vision_only", "language_only", or "language_embed_only"
+        """
+        # First, freeze all parameters
+        for param in self.parameters():
+            param.requires_grad = False
         
-        # Unfreeze language layers
-        if trainable_language_layers is not None:
-            # Find language model layers (architecture-agnostic)
-            lm = self.language_model
-            layer_container = None
-            
-            if hasattr(lm, "model") and hasattr(lm.model, "layers"):
-                layer_container = lm.model.layers
-            elif hasattr(lm, "model") and hasattr(lm.model, "decoder") and hasattr(lm.model.decoder, "layers"):
-                layer_container = lm.model.decoder.layers
-            elif hasattr(lm, "transformer") and hasattr(lm.transformer, "h"):
-                layer_container = lm.transformer.h
-            elif hasattr(lm, "layers"):
-                layer_container = lm.layers
-            
-            if layer_container is not None:
-                total_l_layers = len(layer_container)
-                for layer_idx in range(total_l_layers):
-                    if layer_idx in trainable_language_layers:
-                        for p in layer_container[layer_idx].parameters():
-                            p.requires_grad = True
+        # Always make projector trainable
+        for param in self.projector.parameters():
+            param.requires_grad = True
         
-        # Unfreeze language embeddings
-        if trainable_language_embeddings:
-            for p in self.language_model.get_input_embeddings().parameters():
-                p.requires_grad = True
+        if trainable_params_setting == "vision_only":
+            # Only train vision model
+            for param in self.vision_model.parameters():
+                param.requires_grad = True
+                
+        elif trainable_params_setting == "language_only":
+            # Train entire language model
+            for param in self.language_model.parameters():
+                param.requires_grad = True
+                
+        elif trainable_params_setting == "language_embed_only":
+            # Only train language model input embeddings
+            for param in self.language_model.get_input_embeddings().parameters():
+                param.requires_grad = True
+        else:
+            raise ValueError(f"Unknown trainable_params_setting: {trainable_params_setting}")
         
-        # Unfreeze projector
-        if trainable_projector:
-            for p in self.projector.parameters():
-                p.requires_grad = True
+        # Print trainable parameter counts
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f"Trainable params setting: {trainable_params_setting}")
+        print(f"Total parameters: {total_params:,}")
+        print(f"Trainable parameters: {trainable_params:,} ({100*trainable_params/total_params:.2f}%)")

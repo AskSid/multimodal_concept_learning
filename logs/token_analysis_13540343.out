@@ -1,0 +1,101 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 13540343
+##  Job Name : token_analysis
+##  Nodelist : gpu2001
+##      CPUs : 
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/epavlick/sboppana/multimodal_concept_learning
+##   Job Started : Fri Oct 24 12:55:52 PM EDT 2025
+###############################################################################
+Loading embeddings from: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/12_colors_3k
+Saving plots to: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/12_colors_3k/token_analysis
+Loaded saved tokenizer with vocabulary size: 262151
+Loaded initial model embeddings: torch.Size([262151, 1152])
+Total loaded 1 embedding matrices
+Found 6 OOD tokens and 6 regular tokens in labels mapping
+OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>', '<ood 6>']
+Tokenizer vocabulary size: 262151
+Regular tokens: 6
+OOD tokens: 6
+
+=== Token Analysis ===
+Total vocabulary size: 262151
+Regular tokens: 6
+OOD tokens: 6
+
+Sample regular tokens: ['blue', 'green', 'cyan', 'red', 'magenta']
+
+Sample OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>']
+
+OOD token IDs: [262145, 262146, 262147, 262148, 262149, 262150]
+Regular token IDs: [9503, 10671, 57182, 1192, 96984, 23861]...
+Analyzing 12 tokens across 1 epochs
+initial: (12, 1152)
+
+Fitting UMAP on initial embeddings...
+Transformed initial: (12, 2)
+Extracted RGB colors for 12 tokens
+Saved UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/12_colors_3k/token_analysis/token_embeddings_umap.png
+
+=== RGB Color Information ===
+Regular tokens:
+  blue: RGB(0.000, 0.000, 1.000)
+  green: RGB(0.000, 1.000, 0.000)
+  cyan: RGB(0.000, 1.000, 1.000)
+  red: RGB(1.000, 0.000, 0.000)
+  magenta: RGB(1.000, 0.000, 1.000)
+  yellow: RGB(1.000, 1.000, 0.000)
+
+OOD tokens (first 5):
+  <ood 1>: RGB(0.000, 0.502, 1.000)
+  <ood 2>: RGB(0.000, 1.000, 0.502)
+  <ood 3>: RGB(0.502, 0.000, 1.000)
+  <ood 4>: RGB(0.502, 1.000, 0.000)
+  <ood 5>: RGB(1.000, 0.000, 0.502)
+  ... and 1 more OOD tokens
+=== Creating 3D UMAP Visualization ===
+No epoch data found, using initial embeddings
+Using initial for 3D visualization
+Token embeddings shape: (12, 1152)
+Fitting 3D UMAP...
+3D projections shape: (12, 3)
+Saved 3D UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/12_colors_3k/token_analysis/token_embeddings_3d_umap.html
+3D UMAP visualization complete!
+=== Regular Tokens UMAP Analysis ===
+initial: (6, 1152)
+
+Fitting UMAP on regular tokens from initial epoch...
+Transformed initial: (6, 2)
+Saved regular tokens UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/12_colors_3k/token_analysis/regular_tokens_umap.png
+
+=== Regular Token Distance Analysis ===
+
+initial:
+  blue ↔ green: 0.827
+  blue ↔ cyan: 1.703
+  blue ↔ red: 0.854
+  blue ↔ magenta: 1.867
+  blue ↔ yellow: 1.378
+  green ↔ cyan: 0.927
+  green ↔ red: 1.363
+  green ↔ magenta: 1.358
+  green ↔ yellow: 1.327
+  cyan ↔ red: 1.952
+  cyan ↔ magenta: 0.832
+  cyan ↔ yellow: 1.431
+  red ↔ magenta: 1.724
+  red ↔ yellow: 0.900
+  magenta ↔ yellow: 0.910
+
+=== Color-Embedding Distance Correlation Analysis (initial) ===
+Calculating pairwise distances for 6 regular tokens...
+Number of token pairs: 15
+Color distance range: [1.0000, 3.0000]
+Embedding distance range: [0.5291, 0.8493]
+Pearson correlation coefficient: 0.0618
+
+=== FINAL CORRELATION RESULT ===
+Color-Embedding Distance Correlation: 0.0618
+
+Analysis complete!
+Token embedding analysis completed at Fri Oct 24 12:56:48 PM EDT 2025

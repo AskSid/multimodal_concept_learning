@@ -1,0 +1,77 @@
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'repr' attribute with value False was provided to the `Field()` function, which has no effect in the context it was used. 'repr' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'frozen' attribute with value True was provided to the `Field()` function, which has no effect in the context it was used. 'frozen' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py:340: UserWarning: You passed a edgecolor/edgecolors ('black') for an unfilled marker ('x').  Matplotlib is ignoring the edgecolor in favor of the facecolor.  This behavior may change in the future.
+  ax.scatter(x, y, c=[color], marker=marker, s=size, alpha=0.8, edgecolors='black', linewidth=0.5)
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py:348: UserWarning: You passed a edgecolor/edgecolors ('black') for an unfilled marker ('x').  Matplotlib is ignoring the edgecolor in favor of the facecolor.  This behavior may change in the future.
+  ax.scatter([], [], c='black', marker='x', s=80, label='Regular', edgecolors='black')
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+  warn(
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py:1952: UserWarning:
+
+n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
+
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/spectral.py:519: RuntimeWarning:
+
+k >= N for N * N square matrix. Attempting to use scipy.linalg.eigh instead.
+
+Traceback (most recent call last):
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 670, in <module>
+    main()
+    ~~~~^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 656, in main
+    create_regular_tokens_analysis(embeddings_by_epoch, regular_tokens, regular_token_ids,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                 labels_mapping, args.output_dir)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 544, in create_regular_tokens_analysis
+    regular_reducer.fit(initial_regular_embeddings)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py", line 2817, in fit
+    self.embedding_, aux_data = self._fit_embed_data(
+                                ~~~~~~~~~~~~~~~~~~~~^
+        self._raw_data[index],
+        ^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py", line 2872, in _fit_embed_data
+    return simplicial_set_embedding(
+        X,
+    ...<20 lines>...
+        tqdm_kwds=self.tqdm_kwds,
+    )
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/umap_.py", line 1109, in simplicial_set_embedding
+    embedding = spectral_layout(
+        data,
+    ...<4 lines>...
+        metric_kwds=metric_kwds,
+    )
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/spectral.py", line 304, in spectral_layout
+    return _spectral_layout(
+        data=data,
+    ...<7 lines>...
+        maxiter=maxiter,
+    )
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/umap/spectral.py", line 519, in _spectral_layout
+    eigenvalues, eigenvectors = scipy.sparse.linalg.eigsh(
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        L,
+        ^^
+    ...<5 lines>...
+        maxiter=maxiter or graph.shape[0] * 5,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/scipy/sparse/linalg/_eigen/arpack/arpack.py", line 1612, in eigsh
+    raise TypeError("Cannot use scipy.linalg.eigh for sparse A with "
+                    "k >= N. Use scipy.linalg.eigh(A.toarray()) or"
+                    " reduce k.")
+TypeError: Cannot use scipy.linalg.eigh for sparse A with k >= N. Use scipy.linalg.eigh(A.toarray()) or reduce k.

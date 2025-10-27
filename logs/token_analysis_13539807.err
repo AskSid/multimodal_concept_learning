@@ -1,0 +1,31 @@
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'repr' attribute with value False was provided to the `Field()` function, which has no effect in the context it was used. 'repr' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'frozen' attribute with value True was provided to the `Field()` function, which has no effect in the context it was used. 'frozen' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+The new embeddings will be initialized from a multivariate normal distribution that has old embeddings' mean and covariance. As described in this article: https://nlp.stanford.edu/~johnhew/vocab-expansion.html. To disable this, use `mean_resizing=False`
+Traceback (most recent call last):
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 680, in <module>
+    main()
+    ~~~~^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 658, in main
+    create_umap_visualization(embeddings_by_epoch, ood_tokens, regular_tokens, labels_mapping,
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                            ood_token_ids, regular_token_ids, args.output_dir)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/src/multimodal/token_embedding_analysis.py", line 278, in create_umap_visualization
+    pca.fit(epoch_embeddings['initial'])
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/sklearn/base.py", line 1365, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/sklearn/decomposition/_pca.py", line 440, in fit
+    self._fit(X)
+    ~~~~~~~~~^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/sklearn/decomposition/_pca.py", line 540, in _fit
+    return self._fit_full(X, n_components, xp, is_array_api_compliant)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/oscar/data/epavlick/sboppana/multimodal_concept_learning/.venv/lib/python3.13/site-packages/sklearn/decomposition/_pca.py", line 554, in _fit_full
+    raise ValueError(
+    ...<3 lines>...
+    )
+ValueError: n_components=32 must be between 0 and min(n_samples, n_features)=12 with svd_solver='full'

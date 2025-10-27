@@ -16,58 +16,44 @@ colors:
   - [0, 128, 255] # azure (between cyan and blue)
   - [128, 0, 255] # violet (between blue and magenta)
   - [255, 0, 128] # rose (between magenta and red)
-  # Second set of intermediate colors (12 colors between the first intermediates)
-  - [255, 64, 0] # red-orange (between red and orange)
-  - [255, 192, 0] # orange-yellow (between orange and yellow)
-  - [192, 255, 0] # yellow-lime (between yellow and lime)
-  - [64, 255, 0] # lime-green (between lime and green)
-  - [0, 255, 64] # green-spring (between green and spring green)
-  - [0, 192, 255] # spring-azure (between spring green and azure)
-  - [0, 64, 255] # azure-blue (between azure and blue)
-  - [64, 0, 255] # blue-violet (between blue and violet)
-  - [192, 0, 255] # violet-magenta (between violet and magenta)
-  - [255, 0, 192] # magenta-rose (between magenta and rose)
-  - [255, 0, 64] # rose-red (between rose and red)
-  - [255, 64, 128] # intermediate between red and rose
-  # Third set of intermediate colors (24 more colors for fine-grained distinctions)
-  - [255, 32, 0] # red-red-orange
-  - [255, 96, 0] # red-orange-orange
-  - [255, 160, 0] # orange-orange-yellow
-  - [255, 224, 0] # orange-yellow-yellow
-  - [224, 255, 0] # yellow-yellow-lime
-  - [160, 255, 0] # yellow-lime-lime
-  - [96, 255, 0] # lime-lime-green
-  - [32, 255, 0] # lime-green-green
-  - [0, 255, 32] # green-green-spring
-  - [0, 255, 96] # green-spring-spring
-  - [0, 224, 255] # spring-spring-azure
-  - [0, 160, 255] # spring-azure-azure
-  - [0, 96, 255] # azure-azure-blue
-  - [0, 32, 255] # azure-blue-blue
-  - [32, 0, 255] # blue-blue-violet
-  - [96, 0, 255] # blue-violet-violet
-  - [160, 0, 255] # violet-violet-magenta
-  - [224, 0, 255] # violet-magenta-magenta
-  - [255, 0, 224] # magenta-magenta-rose
-  - [255, 0, 160] # magenta-rose-rose
-  - [255, 0, 96] # rose-rose-red
-  - [255, 0, 32] # rose-red-red
-  - [255, 32, 64] # red-red-rose
-  - [255, 96, 64] # red-rose-rose
-  - [255, 160, 64] # rose-rose-magenta
-  - [255, 224, 64] # rose-magenta-magenta
-  - [255, 255, 32] # magenta-magenta-violet
-  - [255, 255, 96] # magenta-violet-violet
-  - [255, 255, 160] # violet-violet-blue
-  - [255, 255, 224] # violet-blue-blue
-  - [224, 255, 255] # blue-blue-azure
-  - [160, 255, 255] # blue-azure-azure
-  - [96, 255, 255] # azure-azure-spring
-  - [32, 255, 255] # azure-spring-spring
-  - [64, 255, 255] # spring-spring-green
-  - [128, 255, 255] # spring-green-green
-  - [192, 255, 255] # green-green-lime
-  - [255, 255, 255] # green-lime-lime
+  # Second set of intermediate colors (12 more colors)
+  - [255, 64, 0]
+  - [255, 192, 0]
+  - [192, 255, 0]
+  - [64, 255, 0]
+  - [0, 255, 64]
+  - [0, 192, 255]
+  - [0, 64, 255]
+  - [64, 0, 255]
+  - [192, 0, 255]
+  - [255, 0, 192]
+  - [255, 0, 64]
+  - [255, 64, 128]
+  # Third set of intermediate colors (24 more colors)
+  - [255, 32, 0]
+  - [255, 0, 32]
+  - [32, 255, 0]
+  - [0, 255, 32]
+  - [32, 0, 255]
+  - [0, 32, 255]
+  - [255, 32, 32]
+  - [32, 255, 32]
+  - [32, 32, 255]
+  - [255, 96, 0]
+  - [255, 0, 96]
+  - [96, 255, 0]
+  - [0, 255, 96]
+  - [96, 0, 255]
+  - [0, 96, 255]
+  - [255, 96, 96]
+  - [96, 255, 96]
+  - [96, 96, 255]
+  - [255, 160, 0]
+  - [255, 0, 160]
+  - [160, 255, 0]
+  - [0, 255, 160]
+  - [160, 0, 255]
+  - [0, 160, 255]
 radius_range: [10, 50]
 n_images_per_color: 750
 min_intensity: 1.0

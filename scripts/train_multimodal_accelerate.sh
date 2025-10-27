@@ -1,0 +1,56 @@
+#!/bin/bash
+#SBATCH --job-name=multimodal_training
+#SBATCH -p 3090-gcondo
+#SBATCH --gres=gpu:4
+#SBATCH --output=/dev/null
+#SBATCH --time=8:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH -N 1
+
+# Multimodal Training with Accelerate
+# Usage: ./scripts/train_multimodal_accelerate.sh <config_path>
+# Example: sbatch ./scripts/train_multimodal_accelerate.sh experiments/multimodal/color/primary_secondary_5k.yaml
+
+set -e
+
+CONFIG_PATH=$1
+
+# Extract results_dir from config file
+RESULTS_DIR=$(grep 'results_dir:' "$CONFIG_PATH" | sed 's/.*: *"\([^"]*\)".*/\1/')
+
+# Ensure results directory exists
+mkdir -p "$RESULTS_DIR"
+
+# Redirect output to log.out in results directory
+exec > "$RESULTS_DIR/log.out" 2>&1
+
+# Set project root directory
+PROJECT_ROOT="/users/sboppana/data/sboppana/multimodal_concept_learning"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
+# Set environment variables to avoid tokenizers parallelism warnings
+export TOKENIZERS_PARALLELISM=false
+
+nvidia-smi
+
+echo "Starting multimodal training with accelerate..."
+echo "Config: $CONFIG_PATH"
+echo "Project root: $PROJECT_ROOT"
+echo "Results directory: $RESULTS_DIR"
+echo "=========================================="
+
+source "$PROJECT_ROOT/.venv/bin/activate"
+accelerate launch \
+    --mixed_precision fp16 \
+    --num_processes 4 \
+    --num_machines 1 \
+    --machine_rank 0 \
+    --main_process_port 29500 \
+    src/multimodal/multimodal_training.py \
+    --config_path "$CONFIG_PATH"
+
+echo "Training completed!"

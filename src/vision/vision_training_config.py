@@ -69,7 +69,7 @@ class VisionTrainingConfig:
             image_size=int(params.get("image_size", 224)),
             label_smoothing=float(params.get("label_smoothing", 0.0)),
             num_workers=int(params.get("num_workers", 8)),
-            prefetch_factor=params.get("prefetch_factor", 2),
+            prefetch_factor=int(params.get("prefetch_factor", 2)),
             results_dir=params.get("results_dir", "/tmp/results"),
             seed=int(params.get("seed", 42)),
             device=params.get("device", "cuda" if torch.cuda.is_available() else "cpu"),

@@ -22,6 +22,7 @@ from src.utils import set_seed, create_transforms
 from src.multimodal.multimodal_training_config import MultimodalTrainingConfig
 from src.multimodal.mllm import MLLM
 from src.datasets.imagenet.imagenet_dataset import ImageNetDataset, MultimodalCollator
+from src.datasets.color.color_dataset import ColorDataset
 
 
 def load_split_datasets(
@@ -57,20 +58,16 @@ def init_model(config: MultimodalTrainingConfig):
         language_model_name=config.language_model_name,
         vision_path=config.vision_path,
         num_vision_tokens=config.num_vision_tokens,
+        labels_mapping_path=config.labels_mapping_path,
     )
     
     # Set trainable parameters
-    model.set_trainable_params(
-        trainable_vision_layers=config.trainable_vision_layers,
-        trainable_language_layers=config.trainable_language_layers,
-        trainable_language_embeddings=config.trainable_language_embeddings,
-        trainable_projector=config.trainable_projector,
-    )
+    model.set_trainable_params(config.trainable_params_setting)
     
     return model
 
 
-def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, config: MultimodalTrainingConfig, accelerator: Accelerator):
+def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, test_loader: DataLoader, config: MultimodalTrainingConfig, accelerator: Accelerator):
     """Run the train/val loop."""
     # Set up optimizer
     if config.optimizer_type == "adamw":
@@ -102,6 +99,13 @@ def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, 
         model, optimizer, train_loader, val_loader = accelerator.prepare(
             model, optimizer, train_loader, val_loader
         )
+    
+    # Save initial model
+    if accelerator.is_main_process:
+        os.makedirs(os.path.join(config.results_dir, "models"), exist_ok=True)
+        unwrapped_model = accelerator.unwrap_model(model)
+        torch.save(unwrapped_model.state_dict(), os.path.join(config.results_dir, "models", "initial_model.pt"))
+        unwrapped_model.tokenizer.save_pretrained(os.path.join(config.results_dir, "models", "tokenizer"))
     
     # Initialize wandb if not disabled
     if config.use_wandb and accelerator.is_main_process:
@@ -175,23 +179,21 @@ def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, 
         # Save best model
         if val_loss < best_loss and accelerator.is_main_process:
             best_loss = val_loss
-            os.makedirs(os.path.join(config.save_dir, "models"), exist_ok=True)
+            os.makedirs(os.path.join(config.results_dir, "models"), exist_ok=True)
             
             # Save unwrapped model
             unwrapped_model = accelerator.unwrap_model(model)
-            torch.save(unwrapped_model.state_dict(), os.path.join(config.save_dir, "models", "best_model.pt"))
+            torch.save(unwrapped_model.state_dict(), os.path.join(config.results_dir, "models", "best_model.pt"))
             
             # Save training config
-            with open(os.path.join(config.save_dir, "models", "training_config.json"), "w") as f:
+            with open(os.path.join(config.results_dir, "models", "training_config.json"), "w") as f:
                 json.dump(vars(config), f, indent=2)
         
         # Save every epoch if requested
         if config.save_every_epoch and accelerator.is_main_process:
-            epoch_save_path = os.path.join(config.save_dir, "models", f"epoch_{epoch+1}")
-            os.makedirs(epoch_save_path, exist_ok=True)
-            
             unwrapped_model = accelerator.unwrap_model(model)
-            torch.save(unwrapped_model.state_dict(), os.path.join(epoch_save_path, "model.pt"))
+            torch.save(unwrapped_model.state_dict(), os.path.join(config.results_dir, "models", f"epoch_{epoch}_model.pt"))
+
         
         # Log metrics
         metrics = {
@@ -219,10 +221,27 @@ def run_training(model: MLLM, train_loader: DataLoader, val_loader: DataLoader, 
     if accelerator.is_main_process:
         print(f"Best val loss: {best_loss:.4f}")
     
-    # Save final model
+    # Load best model for final evaluation
     if accelerator.is_main_process:
-        unwrapped_model = accelerator.unwrap_model(model)
-        torch.save(unwrapped_model.state_dict(), os.path.join(config.save_dir, "models", "final_model.pt"))
+        print("\n" + "="*50)
+        print("FINAL EVALUATION ON VALIDATION SET")
+        print("="*50)
+        
+        # Load best model
+        best_model_path = os.path.join(config.results_dir, "models", "best_model.pt")
+        if os.path.exists(best_model_path):
+            unwrapped_model.load_state_dict(torch.load(best_model_path, map_location="cpu"))
+            print(f"Loaded best model from {best_model_path}")
+        else:
+            print("Best model not found, using final model")
+    
+    # Evaluate on test set
+    test_metrics = evaluate_model(model, test_loader, config, accelerator)
+    
+    if accelerator.is_main_process:
+        print(f"\nFinal Test Results:")
+        print(f"Test Loss: {test_metrics['test_loss']:.4f}")
+        print(f"Test Accuracy: {test_metrics['test_acc']:.4f}")
     
     if config.use_wandb and accelerator.is_main_process:
         wandb.finish()
@@ -235,10 +254,14 @@ def evaluate_model(model: MLLM, test_loader: DataLoader, config: MultimodalTrain
     correct_predictions = 0
     total_predictions = 0
     
+    # Get the unwrapped model to access tokenizer
+    unwrapped_model = accelerator.unwrap_model(model)
+    
     test_pbar = tqdm(test_loader, desc="Testing", disable=config.disable_tqdm)
     with torch.no_grad():
         for batch in test_pbar:
             with accelerator.autocast():
+                
                 outputs = model(
                     images=batch["images"],
                     input_ids=batch["input_ids"],
@@ -247,21 +270,37 @@ def evaluate_model(model: MLLM, test_loader: DataLoader, config: MultimodalTrain
                 )
                 test_loss += outputs.loss.item()
                 
-                # Evaluate answer token accuracy only
+                # Evaluate using string matching for yes/no tasks
                 logits = outputs.logits
                 labels = batch["labels"]
                 predicted_ids = torch.argmax(logits, dim=-1)
 
-                valid_mask = labels != -100
-                supervised_counts = valid_mask.sum(dim=1)
-                has_supervision = supervised_counts > 0
-
-                if has_supervision.any():
-                    token_matches = (predicted_ids == labels) & valid_mask
-                    correct_counts = token_matches.sum(dim=1)
-                    sample_correct = (correct_counts == supervised_counts) & has_supervision
-                    correct_predictions += sample_correct.sum().item()
-                    total_predictions += has_supervision.sum().item()
+                # Process each sample in the batch
+                batch_size = predicted_ids.size(0)
+                for i in range(batch_size):
+                    # Get valid positions (where labels != -100)
+                    valid_mask = labels[i] != -100
+                    if not valid_mask.any():
+                        continue
+                    
+                    # Get the predicted and ground truth tokens for valid positions
+                    pred_tokens = predicted_ids[i][valid_mask].cpu().tolist()
+                    true_tokens = labels[i][valid_mask].cpu().tolist()
+                    
+                    # Convert to strings for comparison
+                    pred_text = unwrapped_model.tokenizer.decode(pred_tokens, skip_special_tokens=True).strip()
+                    true_text = unwrapped_model.tokenizer.decode(true_tokens, skip_special_tokens=True).strip()
+                    
+                    # Determine if prediction is correct based on yes/no
+                    pred_is_yes = "yes" in pred_text.lower()
+                    true_is_yes = "yes" in true_text.lower()
+                    
+                    # Check if the yes/no prediction matches
+                    is_correct = (pred_is_yes == true_is_yes)
+                    
+                    if is_correct:
+                        correct_predictions += 1
+                    total_predictions += 1
     
     test_loss /= len(test_loader)
     test_acc = 100. * correct_predictions / total_predictions if total_predictions > 0 else 0.0
@@ -308,9 +347,16 @@ def main():
     val_transform = create_transforms(config, is_train=False)
     
     # Load dataset using pre-constructed splits
-    # For now, assume ImageNet dataset - this can be made configurable later
+    # Select dataset class based on config
+    if config.dataset_name == "color_multimodal":
+        dataset_cls = ColorDataset
+    elif config.dataset_name == "imagenet_multimodal":
+        dataset_cls = ImageNetDataset
+    else:
+        raise ValueError(f"Dataset {config.dataset_name} not supported.")
+    
     train_dataset, val_dataset, test_dataset = load_split_datasets(
-        ImageNetDataset,
+        dataset_cls,
         mapping_dir=os.path.dirname(config.mapping_path),  # Extract mapping directory from mapping_path
         data_dir=config.image_root,
         train_transform=train_transform,
@@ -321,8 +367,8 @@ def main():
         print(f"Loaded multimodal dataset with {len(train_dataset)} train samples, {len(val_dataset)} validation samples, and {len(test_dataset)} test samples.")
     
     # Create results directory
-    os.makedirs(config.save_dir, exist_ok=True)
-    os.makedirs(os.path.join(config.save_dir, "models"), exist_ok=True)
+    os.makedirs(config.results_dir, exist_ok=True)
+    os.makedirs(os.path.join(config.results_dir, "models"), exist_ok=True)
     
     # Initialize model
     model = init_model(config)
@@ -340,6 +386,7 @@ def main():
         num_vision_tokens=config.num_vision_tokens,
         prompt_template=config.prompt_template,
         all_class_names=train_dataset.unique_labels,
+        labels_mapping=model.labels_mapping,
     )
     
     # Create DataLoaders
@@ -365,19 +412,22 @@ def main():
         prefetch_factor=config.prefetch_factor,
     )
     
-    # Run training
-    run_training(model, train_loader, val_loader, config, accelerator)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config.batch_size,
+        shuffle=False,
+        collate_fn=collator,
+        num_workers=config.num_workers,
+        pin_memory=config.pin_memory,
+        persistent_workers=config.persistent_workers,
+        prefetch_factor=config.prefetch_factor,
+    )
     
-    # Evaluate on validation set (as test set)
-    if accelerator.is_main_process:
-        print("\n" + "="*50)
-        print("FINAL EVALUATION ON VALIDATION SET")
-        print("="*50)
-    test_metrics = evaluate_model(model, val_loader, config, accelerator)
+    # Prepare all loaders with accelerate
+    train_loader, val_loader, test_loader = accelerator.prepare(train_loader, val_loader, test_loader)
     
-    # Log test metrics to wandb if enabled
-    if config.use_wandb and accelerator.is_main_process:
-        wandb.log(test_metrics)
+    # Run training (includes evaluation)
+    run_training(model, train_loader, val_loader, test_loader, config, accelerator)
 
 
 if __name__ == "__main__":

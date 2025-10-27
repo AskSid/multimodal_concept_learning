@@ -1,0 +1,56 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 13539808
+##  Job Name : token_analysis
+##  Nodelist : gpu2003
+##      CPUs : 
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/epavlick/sboppana/multimodal_concept_learning
+##   Job Started : Fri Oct 24 11:47:52 AM EDT 2025
+###############################################################################
+Loading embeddings from: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k
+Saving plots to: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k/token_analysis
+Loaded saved tokenizer with vocabulary size: 262163
+Loaded initial model embeddings: torch.Size([262163, 1152])
+Loaded epoch 0 embeddings: torch.Size([262163, 1152])
+Loaded epoch 1 embeddings: torch.Size([262163, 1152])
+Loaded epoch 2 embeddings: torch.Size([262163, 1152])
+Loaded epoch 3 embeddings: torch.Size([262163, 1152])
+Loaded epoch 4 embeddings: torch.Size([262163, 1152])
+Loaded epoch 5 embeddings: torch.Size([262163, 1152])
+Loaded epoch 6 embeddings: torch.Size([262163, 1152])
+Loaded epoch 7 embeddings: torch.Size([262163, 1152])
+Loaded epoch 8 embeddings: torch.Size([262163, 1152])
+Loaded epoch 9 embeddings: torch.Size([262163, 1152])
+Total loaded 11 embedding matrices
+Found 18 OOD tokens and 6 regular tokens in labels mapping
+OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>', '<ood 6>', '<ood 7>', '<ood 8>', '<ood 9>', '<ood 10>', '<ood 11>', '<ood 12>', '<ood 13>', '<ood 14>', '<ood 15>', '<ood 16>', '<ood 17>', '<ood 18>']
+Tokenizer vocabulary size: 262163
+Regular tokens: 6
+OOD tokens: 18
+
+=== Token Analysis ===
+Total vocabulary size: 262163
+Regular tokens: 6
+OOD tokens: 18
+
+Sample regular tokens: ['blue', 'green', 'cyan', 'red', 'magenta']
+
+Sample OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>']
+
+OOD token IDs: [262145, 262146, 262147, 262148, 262149, 262150, 262151, 262152, 262153, 262154, 262155, 262156, 262157, 262158, 262159, 262160, 262161, 262162]
+Regular token IDs: [9503, 10671, 57182, 1192, 96984, 23861]...
+Analyzing 24 tokens across 11 epochs
+initial: (24, 1152)
+epoch_0: (24, 1152)
+epoch_1: (24, 1152)
+epoch_2: (24, 1152)
+epoch_3: (24, 1152)
+epoch_4: (24, 1152)
+epoch_5: (24, 1152)
+epoch_6: (24, 1152)
+epoch_7: (24, 1152)
+epoch_8: (24, 1152)
+epoch_9: (24, 1152)
+
+Applying PCA downscaling to 32 dimensions...
+Token embedding analysis completed at Fri Oct 24 11:50:08 AM EDT 2025

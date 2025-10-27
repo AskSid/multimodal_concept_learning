@@ -20,8 +20,8 @@ class ImageNetDataset(Dataset):
         # Create dataset
         self.dataset = []
         for _, row in self.mapping_df.iterrows():
-            # Standardized CSV format: filename, target_synset, class_name
-            image_path = os.path.join(self.data_dir, row['filename'])
+            # Standardized CSV format: image_path, target_synset, class_name
+            image_path = os.path.join(self.data_dir, row['image_path'])
             
             if self.return_synset:
                 # For multimodal, return class_name
@@ -68,12 +68,13 @@ class MultimodalCollator:
         num_vision_tokens: int,
         prompt_template: str = "Is a {class_name} in the image?",
         all_class_names: Optional[List[str]] = None,
-        image_processor=None,
+        labels_mapping: Optional[dict] = None,
     ):
         self.tokenizer = tokenizer
         self.num_vision_tokens = num_vision_tokens
         self.prompt_template = prompt_template
         self.all_class_names = sorted(set(all_class_names)) if all_class_names is not None else None
+        self.labels_mapping = labels_mapping
         
         # Set pad token if not exists
         if self.tokenizer.pad_token is None:
@@ -91,25 +92,45 @@ class MultimodalCollator:
         for image, class_name in batch:
             images.append(image)
             
-            # Generate prompt with random yes/no
-            is_yes = random.random() < 0.5
-            
-            if is_yes:
-                # Use actual class name
-                class_name_for_prompt = class_name
-            else:
-                # Sample different class for negative example
-                if self.all_class_names:
-                    other_classes = [c for c in self.all_class_names if c != class_name]
-                    class_name_for_prompt = random.choice(other_classes) if other_classes else class_name
+            # Check if we have labels mapping
+            if self.labels_mapping and class_name in self.labels_mapping:
+                label_text = self.labels_mapping[class_name]
+                
+                # Check if this is an OOD token
+                if label_text.startswith("<ood"):
+                    # OOD case - use the OOD token directly
+                    prompt = self.prompt_template.format(class_name=class_name)
+                    text = prompt + f" {label_text}"
+                    texts.append(text)
+                    label_token_ids.append(self.tokenizer(label_text, add_special_tokens=False).input_ids)
                 else:
+                    # Regular semantic label case - use yes/no logic
+                    is_yes = random.random() < 0.5
+                    class_name_for_prompt = class_name if is_yes else random.choice(self.all_class_names) if self.all_class_names else class_name
+                    prompt = self.prompt_template.format(class_name=class_name_for_prompt)
+                    text = prompt + (" Yes" if is_yes else " No")
+                    texts.append(text)
+                    label_token_ids.append(self.yes_token_ids if is_yes else self.no_token_ids)
+            else:
+                # Fallback to original logic if no labels mapping
+                is_yes = random.random() < 0.5
+                
+                if is_yes:
+                    # Use actual class name
                     class_name_for_prompt = class_name
-            
-            # Create prompt and answer
-            prompt = self.prompt_template.format(class_name=class_name_for_prompt)
-            text = prompt + (" Yes" if is_yes else " No")
-            texts.append(text)
-            label_token_ids.append(self.yes_token_ids if is_yes else self.no_token_ids)
+                else:
+                    # Sample different class for negative example
+                    if self.all_class_names:
+                        other_classes = [c for c in self.all_class_names if c != class_name]
+                        class_name_for_prompt = random.choice(other_classes) if other_classes else class_name
+                    else:
+                        class_name_for_prompt = class_name
+                
+                # Create prompt and answer
+                prompt = self.prompt_template.format(class_name=class_name_for_prompt)
+                text = prompt + (" Yes" if is_yes else " No")
+                texts.append(text)
+                label_token_ids.append(self.yes_token_ids if is_yes else self.no_token_ids)
         
         # Tokenize texts
         tokenized = self.tokenizer(

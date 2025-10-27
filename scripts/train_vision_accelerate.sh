@@ -3,14 +3,13 @@
 #SBATCH -p 3090-gcondo
 #SBATCH --gres=gpu:8
 #SBATCH --output=/dev/null
-#SBATCH --time=8:00:00
+#SBATCH --time=24:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
 #SBATCH -N 1
 
 # Vision Training with Accelerate
-# Usage: ./scripts/train_vision_accelerate.sh <config_path>
 # Example: sbatch ./scripts/train_vision_accelerate.sh experiments/vision/imagenet100.yaml
 
 set -e

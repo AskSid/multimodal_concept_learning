@@ -123,6 +123,14 @@ def _build_normalize(config, params: Dict[str, Any]):
     return transforms.Normalize(mean=mean, std=std)
 
 
+def _build_rand_augment(_config, params: Dict[str, Any]):
+    from torchvision.transforms import RandAugment
+    return RandAugment(
+        num_ops=params.get("num_ops", 2),
+        magnitude=params.get("magnitude", 10)
+    )
+
+
 _TRANSFORM_FACTORIES = {
     "Resize": _build_resize,
     "RandomResizedCrop": _build_random_resized_crop,
@@ -132,6 +140,7 @@ _TRANSFORM_FACTORIES = {
     "RandomAffine": _build_random_affine,
     "RandomPerspective": _build_random_perspective,
     "RandomErasing": _build_random_erasing,
+    "RandAugment": _build_rand_augment,
     "ToTensor": _build_to_tensor,
     "Normalize": _build_normalize,
 }

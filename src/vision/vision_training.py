@@ -73,6 +73,9 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.epochs, eta_min=config.learning_rate * 0.01)
     
+    # Add gradient clipping
+    max_grad_norm = 1.0
+    
     # Use label smoothing if specified
     if config.label_smoothing > 0:
         criterion = torch.nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
@@ -118,6 +121,8 @@ def run_training(model: ViTForImageClassification, train_loader: DataLoader, val
             
             # Update weights only after accumulating gradients
             if (batch_idx + 1) % accumulation_steps == 0:
+                # Apply gradient clipping
+                accelerator.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm)
                 optimizer.step()
                 optimizer.zero_grad()
             
@@ -276,12 +281,14 @@ def main():
             train_transform=train_transform,
             val_transform=val_transform,
         )
+        
 
     else:
         raise ValueError(f"Dataset {config.dataset_name} not supported.")
 
     if hasattr(train_dataset, "num_classes"):
         config.num_labels = train_dataset.num_classes
+    
 
 
     # Create DataLoaders

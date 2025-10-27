@@ -34,7 +34,7 @@ transform_params: {}
 # Additional parameters
 seed: 42
 device: "cuda"
-disable_tqdm: false
+disable_tqdm: true
 disable_wandb: true
 wandb_project: "multimodal_concept_learning"
 wandb_run_name: "vision_primary_colors_10k"

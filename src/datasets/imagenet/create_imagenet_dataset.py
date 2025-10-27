@@ -239,7 +239,7 @@ def create_mapping_csv(records: List[Tuple[str, str]], target_synsets: List[str]
     
     with open(output_path, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['filename', 'target_synset', 'class_name'])
+        writer.writerow(['image_path', 'target_synset', 'class_name'])
         
         for img_path, original_wnid in records:
             # Find target synset index

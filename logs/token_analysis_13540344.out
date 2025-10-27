@@ -1,0 +1,320 @@
+## SLURM PROLOG ###############################################################
+##    Job ID : 13540344
+##  Job Name : token_analysis
+##  Nodelist : gpu2002
+##      CPUs : 
+##  Mem/Node : 16384 MB
+## Directory : /oscar/data/epavlick/sboppana/multimodal_concept_learning
+##   Job Started : Fri Oct 24 12:55:52 PM EDT 2025
+###############################################################################
+Loading embeddings from: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k
+Saving plots to: /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k/token_analysis
+Loaded saved tokenizer with vocabulary size: 262163
+Loaded initial model embeddings: torch.Size([262163, 1152])
+Loaded epoch 0 embeddings: torch.Size([262163, 1152])
+Loaded epoch 1 embeddings: torch.Size([262163, 1152])
+Loaded epoch 2 embeddings: torch.Size([262163, 1152])
+Loaded epoch 3 embeddings: torch.Size([262163, 1152])
+Loaded epoch 4 embeddings: torch.Size([262163, 1152])
+Loaded epoch 5 embeddings: torch.Size([262163, 1152])
+Loaded epoch 6 embeddings: torch.Size([262163, 1152])
+Loaded epoch 7 embeddings: torch.Size([262163, 1152])
+Loaded epoch 8 embeddings: torch.Size([262163, 1152])
+Loaded epoch 9 embeddings: torch.Size([262163, 1152])
+Total loaded 11 embedding matrices
+Found 18 OOD tokens and 6 regular tokens in labels mapping
+OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>', '<ood 6>', '<ood 7>', '<ood 8>', '<ood 9>', '<ood 10>', '<ood 11>', '<ood 12>', '<ood 13>', '<ood 14>', '<ood 15>', '<ood 16>', '<ood 17>', '<ood 18>']
+Tokenizer vocabulary size: 262163
+Regular tokens: 6
+OOD tokens: 18
+
+=== Token Analysis ===
+Total vocabulary size: 262163
+Regular tokens: 6
+OOD tokens: 18
+
+Sample regular tokens: ['blue', 'green', 'cyan', 'red', 'magenta']
+
+Sample OOD tokens: ['<ood 1>', '<ood 2>', '<ood 3>', '<ood 4>', '<ood 5>']
+
+OOD token IDs: [262145, 262146, 262147, 262148, 262149, 262150, 262151, 262152, 262153, 262154, 262155, 262156, 262157, 262158, 262159, 262160, 262161, 262162]
+Regular token IDs: [9503, 10671, 57182, 1192, 96984, 23861]...
+Analyzing 24 tokens across 11 epochs
+initial: (24, 1152)
+epoch_0: (24, 1152)
+epoch_1: (24, 1152)
+epoch_2: (24, 1152)
+epoch_3: (24, 1152)
+epoch_4: (24, 1152)
+epoch_5: (24, 1152)
+epoch_6: (24, 1152)
+epoch_7: (24, 1152)
+epoch_8: (24, 1152)
+epoch_9: (24, 1152)
+
+Fitting UMAP on initial embeddings...
+Transformed initial: (24, 2)
+Transformed epoch_0: (24, 2)
+Transformed epoch_1: (24, 2)
+Transformed epoch_2: (24, 2)
+Transformed epoch_3: (24, 2)
+Transformed epoch_4: (24, 2)
+Transformed epoch_5: (24, 2)
+Transformed epoch_6: (24, 2)
+Transformed epoch_7: (24, 2)
+Transformed epoch_8: (24, 2)
+Transformed epoch_9: (24, 2)
+Extracted RGB colors for 24 tokens
+Saved UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k/token_analysis/token_embeddings_umap.png
+
+=== RGB Color Information ===
+Regular tokens:
+  blue: RGB(0.000, 0.000, 1.000)
+  green: RGB(0.000, 1.000, 0.000)
+  cyan: RGB(0.000, 1.000, 1.000)
+  red: RGB(1.000, 0.000, 0.000)
+  magenta: RGB(1.000, 0.000, 1.000)
+  yellow: RGB(1.000, 1.000, 0.000)
+
+OOD tokens (first 5):
+  <ood 1>: RGB(0.000, 0.502, 1.000)
+  <ood 2>: RGB(0.000, 0.753, 1.000)
+  <ood 3>: RGB(0.000, 1.000, 0.502)
+  <ood 4>: RGB(0.000, 1.000, 0.251)
+  <ood 5>: RGB(0.000, 0.251, 1.000)
+  ... and 13 more OOD tokens
+=== Creating 3D UMAP Visualization ===
+Using epoch_9 for 3D visualization
+Token embeddings shape: (24, 1152)
+Fitting 3D UMAP...
+3D projections shape: (24, 3)
+Saved 3D UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k/token_analysis/token_embeddings_3d_umap.html
+3D UMAP visualization complete!
+=== Regular Tokens UMAP Analysis ===
+initial: (6, 1152)
+epoch_0: (6, 1152)
+epoch_1: (6, 1152)
+epoch_2: (6, 1152)
+epoch_3: (6, 1152)
+epoch_4: (6, 1152)
+epoch_5: (6, 1152)
+epoch_6: (6, 1152)
+epoch_7: (6, 1152)
+epoch_8: (6, 1152)
+epoch_9: (6, 1152)
+
+Fitting UMAP on regular tokens from initial epoch...
+Transformed initial: (6, 2)
+Transformed epoch_0: (6, 2)
+Transformed epoch_1: (6, 2)
+Transformed epoch_2: (6, 2)
+Transformed epoch_3: (6, 2)
+Transformed epoch_4: (6, 2)
+Transformed epoch_5: (6, 2)
+Transformed epoch_6: (6, 2)
+Transformed epoch_7: (6, 2)
+Transformed epoch_8: (6, 2)
+Transformed epoch_9: (6, 2)
+Saved regular tokens UMAP plot to /users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/color/24_colors_1_5k/token_analysis/regular_tokens_umap.png
+
+=== Regular Token Distance Analysis ===
+
+initial:
+  blue ↔ green: 0.827
+  blue ↔ cyan: 1.703
+  blue ↔ red: 0.854
+  blue ↔ magenta: 1.867
+  blue ↔ yellow: 1.378
+  green ↔ cyan: 0.927
+  green ↔ red: 1.363
+  green ↔ magenta: 1.358
+  green ↔ yellow: 1.327
+  cyan ↔ red: 1.952
+  cyan ↔ magenta: 0.832
+  cyan ↔ yellow: 1.431
+  red ↔ magenta: 1.724
+  red ↔ yellow: 0.900
+  magenta ↔ yellow: 0.910
+
+epoch_0:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_1:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_2:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_3:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_4:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_5:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_6:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_7:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_8:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+epoch_9:
+  blue ↔ green: 3.071
+  blue ↔ cyan: 3.619
+  blue ↔ red: 1.551
+  blue ↔ magenta: 3.677
+  blue ↔ yellow: 1.508
+  green ↔ cyan: 4.258
+  green ↔ red: 3.759
+  green ↔ magenta: 4.264
+  green ↔ yellow: 3.738
+  cyan ↔ red: 2.314
+  cyan ↔ magenta: 0.077
+  cyan ↔ yellow: 2.351
+  red ↔ magenta: 2.384
+  red ↔ yellow: 0.044
+  magenta ↔ yellow: 2.421
+
+=== Color-Embedding Distance Correlation Analysis (initial) ===
+Calculating pairwise distances for 6 regular tokens...
+Number of token pairs: 15
+Color distance range: [1.0000, 3.0000]
+Embedding distance range: [0.5291, 0.8493]
+Pearson correlation coefficient: 0.0618
+
+=== FINAL CORRELATION RESULT ===
+Color-Embedding Distance Correlation: 0.0618
+
+Analysis complete!
+Token embedding analysis completed at Fri Oct 24 12:57:57 PM EDT 2025

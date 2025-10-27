@@ -145,7 +145,7 @@ def generate_color_dataset(config: ColorDatasetConfig) -> str:
         mapping_path = os.path.join(dataset_dir, f"{split_name}_mapping.csv")
         with open(mapping_path, "w", newline="") as mapping_file:
             writer = csv.writer(mapping_file)
-            writer.writerow(["image_path", "color_name"])
+            writer.writerow(["image_path", "class_name"])
             writer.writerows(split_records[split_name])
         print(f"Created {split_name} mapping with {len(split_records[split_name])} images: {mapping_path}")
 

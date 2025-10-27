@@ -11,6 +11,7 @@ class MultimodalTrainingConfig:
     extra_mapping_path: Optional[str]
     image_root: str
     ood_labels_path: str
+    labels_mapping_path: str
     prompt_template: str
     val_split: float
     dataset_name: str
@@ -21,10 +22,7 @@ class MultimodalTrainingConfig:
     vision_path: Optional[str]
     num_vision_tokens: int
     num_labels: int
-    trainable_vision_layers: List[int]
-    trainable_language_layers: List[int]
-    trainable_language_embeddings: bool
-    trainable_projector: bool
+    trainable_params_setting: str
     use_fast_tokenizer: bool
     attn_implementation: str
     torch_dtype: Optional[str]
@@ -61,7 +59,7 @@ class MultimodalTrainingConfig:
     normalize_std: Optional[List[float]]
 
     # Saving and logging
-    save_dir: str
+    results_dir: str
     run_name: str
     save_every_epoch: bool
     save_best_only: bool
@@ -88,6 +86,7 @@ class MultimodalTrainingConfig:
             extra_mapping_path=params.get("extra_mapping_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/train_mapping_separate.csv"),
             image_root=params.get("image_root", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet"),
             ood_labels_path=params.get("ood_labels_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/separate_and_ood_separate_synsets.txt"),
+            labels_mapping_path=params.get("labels_mapping_path", "/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/labels_mapping.json"),
             prompt_template=params.get("prompt_template", "Is a {class_name} in the image?"),
             val_split=float(params.get("val_split", 0.1)),
             dataset_name=params.get("dataset_name", "imagenet_multimodal"),
@@ -96,10 +95,7 @@ class MultimodalTrainingConfig:
             vision_path=params.get("vision_path", None),
             num_vision_tokens=int(params.get("num_vision_tokens", 197)),
             num_labels=int(params.get("num_labels", 100)),
-            trainable_vision_layers=params.get("trainable_vision_layers", []),
-            trainable_language_layers=params.get("trainable_language_layers", []),
-            trainable_language_embeddings=bool(params.get("trainable_language_embeddings", True)),
-            trainable_projector=bool(params.get("trainable_projector", True)),
+            trainable_params_setting=params.get("trainable_params_setting", "language_embed_only"),
             use_fast_tokenizer=bool(params.get("use_fast_tokenizer", True)),
             attn_implementation=params.get("attn_implementation", "eager"),
             torch_dtype=params.get("torch_dtype", "bfloat16" if torch.cuda.is_available() else None),
@@ -161,7 +157,7 @@ class MultimodalTrainingConfig:
                 "normalize_std",
                 [0.229, 0.224, 0.225],
             ),
-            save_dir=params.get("save_dir", "/users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal"),
+            results_dir=params.get("results_dir", "/users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal"),
             run_name=params.get("run_name", "mllm_imagenet100_ood"),
             save_every_epoch=bool(params.get("save_every_epoch", False)),
             save_best_only=bool(params.get("save_best_only", True)),

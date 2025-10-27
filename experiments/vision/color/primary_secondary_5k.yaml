@@ -12,7 +12,7 @@ num_attention_heads: 12
 # Dataset parameters
 data_dir: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color/primary_secondary_colors_5k"
 dataset_name: color
-mapping_path: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color/primary_secondary_5k"
+mapping_path: "/users/sboppana/data/sboppana/data/multimodal_concept_learning/color/primary_secondary_colors_5k"
 
 # Training parameters
 epochs: 5
@@ -24,7 +24,7 @@ image_size: 224
 label_smoothing: 0.0
 num_workers: 4
 prefetch_factor: 2
-results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/vision/primary_secondary_5k"
+results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/vision/color/primary_secondary_5k"
 
 # Transform configurations
 train_transforms: ["ToTensor"]
@@ -34,7 +34,7 @@ transform_params: {}
 # Additional parameters
 seed: 42
 device: "cuda"
-disable_tqdm: false
+disable_tqdm: true
 disable_wandb: true
 wandb_project: "multimodal_concept_learning"
 wandb_run_name: "vision_primary_secondary_5k"
