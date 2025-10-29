@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=multimodal_training
 #SBATCH -p 3090-gcondo
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:8
 #SBATCH --output=/dev/null
-#SBATCH --time=8:00:00
+#SBATCH --time=24:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
@@ -45,8 +45,8 @@ echo "=========================================="
 
 source "$PROJECT_ROOT/.venv/bin/activate"
 accelerate launch \
-    --mixed_precision fp16 \
-    --num_processes 4 \
+    --mixed_precision bf16 \
+    --num_processes 8 \
     --num_machines 1 \
     --machine_rank 0 \
     --main_process_port 29500 \

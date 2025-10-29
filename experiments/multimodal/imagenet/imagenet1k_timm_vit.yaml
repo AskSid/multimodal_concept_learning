@@ -1,0 +1,83 @@
+# Multimodal training experiment using timm ViT model on ImageNet-1K
+# This experiment uses a pre-trained ViT model from timm and will work with ImageNet-1K synsets
+
+# Dataset parameters
+mapping_path: /users/sboppana/data/sboppana/multimodal_concept_learning/data/multimodal_concept_learning/imagenet1k/imagenet1k_100ood/train_mapping.csv
+image_root: /users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet
+labels_mapping_path: /users/sboppana/data/sboppana/multimodal_concept_learning/experiments/multimodal/imagenet/imagenet1k_100ood_labels_mapping.json
+ood_labels_path: /users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet100_v2/separate_and_ood_separate_synsets.txt
+prompt_template: "Is a {class_name} in the image?"
+val_split: 0.1
+dataset_name: imagenet_multimodal
+
+# Model parameters
+vision_model_name: timm/vit_base_patch16_224.augreg_in1k
+language_model_name: google/gemma-3-1b-it
+vision_path: null  # Use Hugging Face model
+num_vision_tokens: 197
+num_labels: 1000  # Full ImageNet-1K
+trainable_params_setting: language_embed_only
+use_fast_tokenizer: true
+attn_implementation: eager
+torch_dtype: bfloat16
+
+# Training parameters
+epochs: 25
+batch_size: 8
+effective_batch_size: 256
+learning_rate: 5e-4
+weight_decay: 1e-4
+max_grad_norm: 1.0
+lr_scheduler_type: linear
+warmup_steps: 1000
+optimizer_type: adamw
+gradient_accumulation_steps: 1
+
+# Training settings
+seed: 42
+device: cuda
+mixed_precision: bf16
+disable_tqdm: true
+supervision_type: answer_only
+
+# Data loading
+num_workers: 4
+prefetch_factor: 2
+pin_memory: true
+persistent_workers: true
+image_size: 224
+
+# Data augmentation for ImageNet
+train_transforms:
+  - {"name": "Resize", "size": [224, 224]}
+  - "ToTensor"
+  - "Normalize"
+
+val_transforms:
+  - {"name": "Resize", "size": [224, 224]}
+  - "ToTensor"
+  - "Normalize"
+
+transform_params: {}
+normalize_mean: [0.485, 0.456, 0.406]
+normalize_std: [0.229, 0.224, 0.225]
+
+# Saving and logging
+results_dir: "/users/sboppana/data/sboppana/multimodal_concept_learning/results/multimodal/imagenet/imagenet1k_timm_vit"
+run_name: mllm_imagenet1k_timm_vit
+save_every_epoch: true
+save_best_only: true
+
+# Evaluation
+eval_steps: null
+eval_strategy: epoch
+
+# Weights & Biases
+use_wandb: false
+wandb_project: multimodal-concept-learning
+wandb_run_name: mllm_imagenet1k_timm_vit
+
+# Distributed training
+use_accelerate: true
+num_processes: null
+split_batches: true

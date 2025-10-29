@@ -245,7 +245,10 @@ def create_mapping_csv(records: List[Tuple[str, str]], target_synsets: List[str]
             # Find target synset index
             target_idx = target_synsets.index(original_wnid)
             target_wnid = target_synsets[target_idx]
-            class_name = wnid_to_name.get(target_wnid, target_wnid)
+            full_class_name = wnid_to_name.get(target_wnid, target_wnid)
+            
+            # Extract only the first name (before first comma)
+            class_name = full_class_name.split(',')[0].strip()
             
             writer.writerow([img_path, target_wnid, class_name])
     

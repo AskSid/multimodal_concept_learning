@@ -5,6 +5,7 @@ from transformers import (
     ViTModel,
     AutoTokenizer,
     AutoModelForCausalLM,
+    AutoModelForImageClassification,
 )
 from typing import List, Optional, Union
 from PIL import Image
@@ -31,7 +32,11 @@ class MLLM(torch.nn.Module):
         if vision_path is not None:
             self.vision_model = ViTModel.from_pretrained(vision_path)
         else:
-            self.vision_model = ViTModel.from_pretrained(vision_model_name)
+            # Use AutoModelForImageClassification for timm models
+            if 'timm' in vision_model_name:
+                self.vision_model = AutoModelForImageClassification.from_pretrained(vision_model_name)
+            else:
+                self.vision_model = ViTModel.from_pretrained(vision_model_name)
         
         # Load language model
         model_kwargs = {"attn_implementation": "eager", "torch_dtype": torch.bfloat16}
@@ -68,8 +73,14 @@ class MLLM(torch.nn.Module):
                 new_embeddings.weight.data[-len(ood_tokens):] = new_embeddings.weight.data[:len(ood_tokens)].clone()
         
         # Projector to align vision and language embeddings
+        if 'timm' in vision_model_name:
+            # For timm models, get hidden size from the timm_model component
+            vision_hidden_size = self.vision_model.timm_model.embed_dim
+        else:
+            vision_hidden_size = self.vision_model.config.hidden_size
+            
         self.projector = nn.Linear(
-            self.vision_model.config.hidden_size,
+            vision_hidden_size,
             self.language_model.config.hidden_size
         )
         
@@ -79,12 +90,18 @@ class MLLM(torch.nn.Module):
     def forward(self, images, input_ids, attention_mask, labels=None):
         """Forward pass for training."""
         # Get vision embeddings
-        vision_outputs = self.vision_model(
-            pixel_values=images, 
-            output_hidden_states=True, 
-            return_dict=True
-        )
-        image_embeds = vision_outputs.last_hidden_state
+        if 'timm' in self.vision_model_name:
+            # For timm models loaded with AutoModelForImageClassification
+            image_embeds = self.vision_model.timm_model.forward_features(images)
+        else:
+            # For standard ViT models
+            vision_outputs = self.vision_model(
+                pixel_values=images, 
+                output_hidden_states=True, 
+                return_dict=True
+            )
+            image_embeds = vision_outputs.last_hidden_state
+        
         projected_image_embeds = self.projector(image_embeds)
         
         # Get language embeddings
@@ -107,12 +124,17 @@ class MLLM(torch.nn.Module):
         """Get projected vision embeddings for a batch of images."""
         self.eval()
         with torch.no_grad():
-            vision_outputs = self.vision_model(
-                pixel_values=images, 
-                output_hidden_states=True, 
-                return_dict=True
-            )
-            image_embeds = vision_outputs.last_hidden_state
+            if 'timm' in self.vision_model_name:
+                # For timm models loaded with AutoModelForImageClassification
+                image_embeds = self.vision_model.timm_model.forward_features(images)
+            else:
+                # For standard ViT models
+                vision_outputs = self.vision_model(
+                    pixel_values=images, 
+                    output_hidden_states=True, 
+                    return_dict=True
+                )
+                image_embeds = vision_outputs.last_hidden_state
             projected_embeds = self.projector(image_embeds)
         return projected_embeds
     
@@ -120,12 +142,17 @@ class MLLM(torch.nn.Module):
         """Get raw vision embeddings for a batch of images."""
         self.eval()
         with torch.no_grad():
-            vision_outputs = self.vision_model(
-                pixel_values=images, 
-                output_hidden_states=True, 
-                return_dict=True
-            )
-            return vision_outputs.last_hidden_state
+            if 'timm' in self.vision_model_name:
+                # For timm models loaded with AutoModelForImageClassification
+                return self.vision_model.timm_model.forward_features(images)
+            else:
+                # For standard ViT models
+                vision_outputs = self.vision_model(
+                    pixel_values=images, 
+                    output_hidden_states=True, 
+                    return_dict=True
+                )
+                return vision_outputs.last_hidden_state
     
     def set_trainable_params(self, trainable_params_setting: str):
         """Set trainable parameters based on the specified setting.
