@@ -114,15 +114,29 @@ def get_path_based_colors(
     if not target_nodes:
         target_nodes = list(root_nodes)
 
-    palette = px.colors.qualitative.Set3
-    if len(target_nodes) > len(palette):
-        repeats = len(target_nodes) // len(palette) + 1
-        palette = (palette * repeats)[: len(target_nodes)]
+    palette = (
+        px.colors.qualitative.Set3
+        + px.colors.qualitative.Dark24
+        + px.colors.qualitative.Light24
+        + px.colors.qualitative.Alphabet
+    )
+    if not palette:
+        palette = [FALLBACK_COLOR]
 
-    parent_to_color = {node: palette[idx] for idx, node in enumerate(target_nodes)}
-
+    parent_to_color: Dict[str, str] = {}
     token_to_parent: Dict[str, str] = {}
     token_to_color: Dict[str, str] = {}
+    color_index = 0
+
+    def assign_color(parent: str) -> str:
+        nonlocal color_index
+        if parent not in parent_to_color:
+            parent_to_color[parent] = palette[color_index % len(palette)]
+            color_index += 1
+        return parent_to_color[parent]
+
+    for node in target_nodes:
+        assign_color(node)
 
     for token_name in token_names:
         wnid = token_to_wnid.get(token_name)
@@ -130,12 +144,10 @@ def get_path_based_colors(
         if wnid:
             path = get_path_to_root(wnid, child_to_parents)
             parent_choice = next((node for node in path if node in parent_to_color), wnid)
+        if parent_choice is None:
+            parent_choice = token_name
         token_to_parent[token_name] = parent_choice
-        token_to_color[token_name] = parent_to_color.get(parent_choice, FALLBACK_COLOR)
-
-    # Ensure every parent that appears has a color entry
-    for parent in token_to_parent.values():
-        parent_to_color.setdefault(parent, FALLBACK_COLOR)
+        token_to_color[token_name] = assign_color(parent_choice)
 
     return token_to_color, token_to_parent, parent_to_color
 
@@ -382,6 +394,7 @@ def create_interactive_umap(
         symbol_map=SYMBOL_MAP,
         hover_data={"token": True, "token_type": True, "parent_name": True},
         animation_frame="epoch",
+        animation_group="token",
         category_orders={
             "epoch": epochs,
             "token_type": [label for label in SYMBOL_MAP if label in token_types],
@@ -397,6 +410,7 @@ def create_interactive_umap(
         width=900,
         height=700,
         margin=dict(l=40, r=40, t=60, b=40),
+        uirevision="token-embeddings",
     )
 
     if output_dir:
