@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Token embedding analysis utilities for ImageNet models.
+"""Token embedding analysis for ImageNet models using Matplotlib.
 
-This version streamlines the plotting experience by generating a single
-interactive 2D UMAP visualization that animates across epochs. The goal is to
-keep the exploratory workflow intact while removing the dense UI chrome and
-redundant plots that previously made the script difficult to use.
+The script loads saved token embeddings, projects them with UMAP, and writes six
+static figures (2D and 3D for three token subsets). The goal is to keep the
+interface simple: no interactive UI, just small PNGs coloured by the chosen
+WordNet ancestor level.
 """
 
 from __future__ import annotations
@@ -14,21 +14,21 @@ import json
 import os
 import sys
 import warnings
+from collections import Counter
 from typing import Dict, Iterable, List, Tuple
 
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.lines import Line2D
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 - activates 3D projection
 import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import torch
 import umap
 from transformers import AutoTokenizer
 
-# Silence noisy third-party warnings that tend to clutter CLI output
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 warnings.filterwarnings("ignore", category=UserWarning, module="tqdm")
 
-# Add project root to path for relative imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(project_root)
@@ -38,11 +38,10 @@ from src.multimodal.multimodal_training_config import MultimodalTrainingConfig
 
 
 FALLBACK_COLOR = "#636363"
-SYMBOL_MAP = {"Regular": "square", "OOD": "circle"}
+DEFAULT_LEGEND_MAX = 12
 
 
 def load_wordnet_hierarchy(data_dir: str) -> Tuple[Dict[str, List[str]], Dict[str, List[str]], Dict[str, str]]:
-    """Load parent/child WordNet relationships required for coloring."""
     devkit_dir = os.path.join(data_dir, "ILSVRC2012_devkit_t12", "data")
     isa_path = os.path.join(devkit_dir, "wordnet.is_a.txt")
     words_path = os.path.join(devkit_dir, "words.txt")
@@ -70,16 +69,13 @@ def load_wordnet_hierarchy(data_dir: str) -> Tuple[Dict[str, List[str]], Dict[st
 
 
 def find_root_nodes(parent_to_children: Dict[str, Iterable[str]]) -> List[str]:
-    """Roots are parents that never appear as children."""
     all_children = {child for children in parent_to_children.values() for child in children}
     return [parent for parent in parent_to_children if parent not in all_children]
 
 
 def get_nodes_at_depth(parent_to_children: Dict[str, List[str]], root_nodes: List[str], depth: int) -> List[str]:
-    """Collect every node that sits exactly ``depth`` steps away from the roots."""
     if depth <= 0:
         return root_nodes
-
     current = list(root_nodes)
     for _ in range(depth):
         next_level: List[str] = []
@@ -92,7 +88,6 @@ def get_nodes_at_depth(parent_to_children: Dict[str, List[str]], root_nodes: Lis
 
 
 def get_path_to_root(wnid: str, child_to_parents: Dict[str, List[str]]) -> List[str]:
-    """Follow the first parent pointer up to the root."""
     path = [wnid]
     current = wnid
     while current in child_to_parents and child_to_parents[current]:
@@ -101,54 +96,57 @@ def get_path_to_root(wnid: str, child_to_parents: Dict[str, List[str]]) -> List[
     return path
 
 
+def build_palette() -> List[str]:
+    qualitative = []
+    for name in ["tab20", "tab20b", "tab20c", "Set3"]:
+        cmap = cm.get_cmap(name)
+        qualitative.extend([cmap(i) for i in range(cmap.N)])
+    hex_colors = [
+        "#%02x%02x%02x" % (int(r * 255), int(g * 255), int(b * 255))
+        for r, g, b, *_ in qualitative
+    ]
+    return hex_colors or [FALLBACK_COLOR]
+
+
 def get_path_based_colors(
     token_names: List[str],
     token_to_wnid: Dict[str, str],
     parent_to_children: Dict[str, List[str]],
     child_to_parents: Dict[str, List[str]],
     wnid_to_name: Dict[str, str],
-    depth: int = 2,
+    depth: int,
 ) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
-    """Assign colors by tracing tokens to a shared ancestor at the requested depth."""
     root_nodes = find_root_nodes(parent_to_children)
     target_nodes = get_nodes_at_depth(parent_to_children, root_nodes, depth)
     if not target_nodes:
         target_nodes = list(root_nodes)
 
-    palette = (
-        px.colors.qualitative.Set3
-        + px.colors.qualitative.Dark24
-        + px.colors.qualitative.Light24
-        + px.colors.qualitative.Alphabet
-    )
-    if not palette:
-        palette = [FALLBACK_COLOR]
-
+    palette = build_palette()
     parent_to_color: Dict[str, str] = {}
     token_to_parent: Dict[str, str] = {}
     token_to_color: Dict[str, str] = {}
     color_index = 0
 
-    def assign_color(parent: str) -> str:
+    def claim_color(parent_id: str) -> str:
         nonlocal color_index
-        if parent not in parent_to_color:
-            parent_to_color[parent] = palette[color_index % len(palette)]
+        if parent_id not in parent_to_color:
+            parent_to_color[parent_id] = palette[color_index % len(palette)]
             color_index += 1
-        return parent_to_color[parent]
+        return parent_to_color[parent_id]
 
     for node in target_nodes:
-        assign_color(node)
+        claim_color(node)
 
-    for token_name in token_names:
-        wnid = token_to_wnid.get(token_name)
+    for token in token_names:
+        wnid = token_to_wnid.get(token)
         parent_choice = wnid
         if wnid:
             path = get_path_to_root(wnid, child_to_parents)
             parent_choice = next((node for node in path if node in parent_to_color), wnid)
         if parent_choice is None:
-            parent_choice = token_name
-        token_to_parent[token_name] = parent_choice
-        token_to_color[token_name] = assign_color(parent_choice)
+            parent_choice = token
+        token_to_parent[token] = parent_choice
+        token_to_color[token] = claim_color(parent_choice)
 
     return token_to_color, token_to_parent, parent_to_color
 
@@ -159,36 +157,16 @@ def _to_numpy(array: torch.Tensor | np.ndarray) -> np.ndarray:
     return array.detach().cpu().float().numpy()
 
 
-def _fit_umap_and_transform(
-    epoch_embeddings: Dict[str, torch.Tensor],
-    n_components: int = 2,
-    n_neighbors: int | None = None,
-) -> Dict[str, np.ndarray]:
-    """Fit UMAP on the first epoch and project the rest with the same reducer."""
-    if not epoch_embeddings:
-        return {}
-
-    fit_key = "initial" if "initial" in epoch_embeddings else sorted(epoch_embeddings.keys())[0]
-    base_matrix = _to_numpy(epoch_embeddings[fit_key])
-    if base_matrix.shape[0] < 3:
-        raise ValueError("Need at least three tokens to run UMAP.")
-
-    if n_neighbors is None:
-        n_neighbors = min(15, base_matrix.shape[0] - 1)
-    n_neighbors = max(2, min(n_neighbors, base_matrix.shape[0] - 1))
-
+def _fit_umap(embeddings: torch.Tensor, n_components: int) -> np.ndarray:
+    matrix = _to_numpy(embeddings)
+    if matrix.shape[0] < max(3, n_components + 1):
+        raise ValueError("Need more tokens to run UMAP for the requested dimensionality.")
+    n_neighbors = max(2, min(15, matrix.shape[0] - 1))
     reducer = umap.UMAP(n_components=n_components, random_state=42, n_neighbors=n_neighbors)
-    reducer.fit(base_matrix)
-
-    projections: Dict[str, np.ndarray] = {}
-    for epoch_name, embeddings in epoch_embeddings.items():
-        matrix = _to_numpy(embeddings)
-        projections[epoch_name] = reducer.transform(matrix)
-    return projections
+    return reducer.fit_transform(matrix)
 
 
 def _sort_epochs(epoch_names: Iterable[str]) -> List[str]:
-    """Sort epochs placing 'initial' first followed by numeric epochs."""
     names = list(epoch_names)
     has_initial = "initial" in names
     if has_initial:
@@ -200,7 +178,6 @@ def _sort_epochs(epoch_names: Iterable[str]) -> List[str]:
 
 
 def load_token_embeddings(results_dir: str, max_epochs: int | None = None):
-    """Load embedding matrices from saved checkpoints."""
     models_dir = os.path.join(results_dir, "models")
     config_path = os.path.join(models_dir, "training_config.json")
     if not os.path.exists(config_path):
@@ -208,7 +185,6 @@ def load_token_embeddings(results_dir: str, max_epochs: int | None = None):
 
     with open(config_path, "r") as handle:
         config_dict = json.load(handle)
-
     config = MultimodalTrainingConfig.from_params(config_dict)
 
     tokenizer_path = os.path.join(models_dir, "tokenizer")
@@ -257,7 +233,6 @@ def load_token_embeddings(results_dir: str, max_epochs: int | None = None):
 
 
 def extract_tokens_from_saved_tokenizer(tokenizer, config):
-    """Extract OOD and regular token lists from the saved metadata."""
     labels_mapping = None
     ood_tokens: List[str] = []
     regular_tokens: List[str] = []
@@ -270,8 +245,8 @@ def extract_tokens_from_saved_tokenizer(tokenizer, config):
         regular_tokens = [token for token in values if not token.startswith("<ood")]
         print(f"Labels mapping provided {len(regular_tokens)} regular and {len(ood_tokens)} OOD tokens")
     else:
-        vocabulary = tokenizer.get_vocab()
-        for token in vocabulary:
+        vocab = tokenizer.get_vocab()
+        for token in vocab:
             if token.startswith("<ood"):
                 ood_tokens.append(token)
             elif not token.startswith("<") and len(token) > 1:
@@ -288,197 +263,121 @@ def average_embeddings_for_tokens(
     embeddings_by_epoch: Dict[str, torch.Tensor],
     token_names: List[str],
 ) -> Dict[str, torch.Tensor]:
-    """Average sub-token embeddings for each token string per epoch."""
     averaged: Dict[str, torch.Tensor] = {}
     if not embeddings_by_epoch:
         return averaged
 
-    embedding_dim = next(iter(embeddings_by_epoch.values())).shape[1]
+    sample_epoch = next(iter(embeddings_by_epoch.values()))
+    embedding_dim = sample_epoch.shape[1]
 
     for epoch_name, embedding_matrix in embeddings_by_epoch.items():
         if not token_names:
             averaged[epoch_name] = torch.empty((0, embedding_dim), dtype=embedding_matrix.dtype)
             continue
-
-        epoch_vectors: List[torch.Tensor] = []
+        vectors: List[torch.Tensor] = []
         for token_name in token_names:
             token_ids = tokenizer.encode(token_name, add_special_tokens=False)
             if token_ids:
                 token_embedding = embedding_matrix[token_ids].mean(dim=0)
             else:
                 token_embedding = torch.zeros(embedding_dim, dtype=embedding_matrix.dtype)
-            epoch_vectors.append(token_embedding)
-        averaged[epoch_name] = torch.stack(epoch_vectors)
+            vectors.append(token_embedding)
+        averaged[epoch_name] = torch.stack(vectors)
     return averaged
 
 
-def _build_projection_dataframe(
-    epochs: List[str],
-    projections: Dict[str, np.ndarray],
+def select_epoch(embeddings_by_epoch: Dict[str, torch.Tensor], requested_epoch: str | None) -> str:
+    epochs = _sort_epochs(embeddings_by_epoch.keys())
+    if not epochs:
+        raise ValueError("No embedding checkpoints were loaded.")
+    if requested_epoch and requested_epoch in embeddings_by_epoch:
+        return requested_epoch
+    if requested_epoch:
+        print(f"Requested epoch '{requested_epoch}' not found; falling back to final epoch")
+    return epochs[-1]
+
+
+def add_parent_legend(ax, parents: List[str], parent_to_color: Dict[str, str], wnid_to_name: Dict[str, str]) -> None:
+    counts = Counter(parents)
+    top_parents = [parent for parent, _ in counts.most_common(DEFAULT_LEGEND_MAX)]
+    handles = []
+    labels = []
+    for parent in top_parents:
+        color = parent_to_color.get(parent, FALLBACK_COLOR)
+        label = wnid_to_name.get(parent, parent)
+        handles.append(Line2D([0], [0], marker='o', color='none', markerfacecolor=color, markersize=6))
+        labels.append(label)
+    if handles:
+        ax.legend(handles, labels, title="WordNet parent", loc="best", fontsize=8)
+
+
+def save_scatter_2d(points: np.ndarray, colors: List[str], parents: List[str], parent_to_color: Dict[str, str],
+                     wnid_to_name: Dict[str, str], title: str, output_path: str) -> None:
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.scatter(points[:, 0], points[:, 1], c=colors, s=16, alpha=0.9)
+    ax.set_title(title)
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+    add_parent_legend(ax, parents, parent_to_color, wnid_to_name)
+    ax.grid(False)
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+
+def save_scatter_3d(points: np.ndarray, colors: List[str], parents: List[str], parent_to_color: Dict[str, str],
+                     wnid_to_name: Dict[str, str], title: str, output_path: str) -> None:
+    fig = plt.figure(figsize=(6, 5))
+    ax = fig.add_subplot(111, projection="3d")
+    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=colors, s=16, depthshade=False)
+    ax.set_title(title)
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+    ax.set_zlabel("UMAP 3")
+    add_parent_legend(ax, parents, parent_to_color, wnid_to_name)
+    plt.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
+
+
+def save_umap_figures(
+    label: str,
+    epoch_name: str,
+    embeddings: torch.Tensor,
     token_names: List[str],
-    token_types: List[str],
-    token_to_parent: Dict[str, str],
-    wnid_to_name: Dict[str, str],
-) -> pd.DataFrame:
-    """Convert projected coordinates into a tidy DataFrame for Plotly Express."""
-    rows: List[Dict[str, object]] = []
-    for epoch_name in epochs:
-        coords = projections[epoch_name]
-        if coords.shape[0] != len(token_names):
-            raise ValueError(
-                f"Projection for {epoch_name} has {coords.shape[0]} rows, expected {len(token_names)}"
-            )
-        for idx, token_name in enumerate(token_names):
-            parent_id = token_to_parent.get(token_name, token_name)
-            parent_label = wnid_to_name.get(parent_id, parent_id)
-            rows.append(
-                {
-                    "epoch": epoch_name,
-                    "token": token_name,
-                    "token_type": token_types[idx],
-                    "parent": parent_id,
-                    "parent_name": parent_label,
-                    "umap_x": coords[idx, 0],
-                    "umap_y": coords[idx, 1],
-                }
-            )
-    return pd.DataFrame(rows)
-
-
-
-def create_interactive_umap(
-    ood_embeddings: Dict[str, torch.Tensor],
-    regular_embeddings: Dict[str, torch.Tensor],
-    ood_tokens: List[str],
-    regular_tokens: List[str],
+    token_to_color: Dict[str, str],
     token_to_parent: Dict[str, str],
     parent_to_color: Dict[str, str],
     wnid_to_name: Dict[str, str],
-    output_dir: str | None,
+    output_dir: str,
 ) -> None:
-    """Generate a lightweight HTML report with a slider-driven UMAP scatter plot."""
-    token_names = ood_tokens + regular_tokens
-    if len(token_names) < 3:
-        print("Not enough tokens for UMAP visualization (need at least three). Skipping plot generation.")
+    if embeddings.shape[0] < 3:
+        print(f"Not enough tokens to build {label} projections (need at least 3)")
         return
 
-    epoch_names = sorted(set(ood_embeddings.keys()) | set(regular_embeddings.keys()))
-    epochs = _sort_epochs(epoch_names)
+    colors = [token_to_color.get(token, FALLBACK_COLOR) for token in token_names]
+    parents = [token_to_parent.get(token, token) for token in token_names]
 
-    combined_embeddings: Dict[str, torch.Tensor] = {}
-    for epoch_name in epochs:
-        pieces: List[torch.Tensor] = []
-        if ood_tokens:
-            if epoch_name not in ood_embeddings:
-                raise KeyError(f"Missing OOD embeddings for {epoch_name}")
-            pieces.append(ood_embeddings[epoch_name])
-        if regular_tokens:
-            if epoch_name not in regular_embeddings:
-                raise KeyError(f"Missing regular embeddings for {epoch_name}")
-            pieces.append(regular_embeddings[epoch_name])
-        combined_embeddings[epoch_name] = torch.cat(pieces, dim=0)
+    try:
+        points_2d = _fit_umap(embeddings, n_components=2)
+        title_2d = f"UMAP 2D ({label}, {epoch_name})"
+        path_2d = os.path.join(output_dir, f"{epoch_name}_{label}_umap_2d.png")
+        save_scatter_2d(points_2d, colors, parents, parent_to_color, wnid_to_name, title_2d, path_2d)
+        print(f"  Saved {path_2d}")
+    except ValueError as err:
+        print(f"  Skipping 2D projection for {label}: {err}")
 
-    projections = _fit_umap_and_transform(combined_embeddings, n_components=2)
-    token_types = ["OOD"] * len(ood_tokens) + ["Regular"] * len(regular_tokens)
-    df = _build_projection_dataframe(epochs, projections, token_names, token_types, token_to_parent, wnid_to_name)
-
-    # Create lookup tables for per-token visuals
-    colors_by_token = {}
-    symbols_by_token = {}
-    for token, kind in zip(token_names, token_types):
-        parent_id = token_to_parent.get(token, token)
-        colors_by_token[token] = parent_to_color.get(parent_id, FALLBACK_COLOR)
-        symbols_by_token[token] = SYMBOL_MAP.get(kind, "circle")
-
-    fig = go.Figure()
-    epoch_trace_indices: Dict[str, List[int]] = {epoch: [] for epoch in epochs}
-
-    for epoch_name in epochs:
-        epoch_df = df[df["epoch"] == epoch_name]
-        trace = go.Scatter(
-            x=epoch_df["umap_x"],
-            y=epoch_df["umap_y"],
-            mode="markers",
-            marker=dict(
-                size=8,
-                color=[colors_by_token[token] for token in epoch_df["token"]],
-                symbol=[symbols_by_token[token] for token in epoch_df["token"]],
-                line=dict(width=0.6, color="#1f2933"),
-            ),
-            text=epoch_df["token"],
-            hovertemplate=(
-                "Token: %{text}<br>Type: %{customdata[0]}<br>Parent: %{customdata[1]}"
-                "<br>Epoch: %{customdata[2]}<extra></extra>"
-            ),
-            customdata=list(
-                zip(
-                    epoch_df["token_type"],
-                    epoch_df["parent_name"],
-                    epoch_df["epoch"],
-                )
-            ),
-            showlegend=False,
-            visible=(epoch_name == epochs[0]),
-            name=epoch_name,
-            legendgroup="epochs",
-        )
-        fig.add_trace(trace)
-        epoch_trace_indices[epoch_name].append(len(fig.data) - 1)
-
-    for parent_id, color in sorted(parent_to_color.items(), key=lambda item: wnid_to_name.get(item[0], item[0])):
-        legend_trace = go.Scatter(
-            x=[None],
-            y=[None],
-            mode="markers",
-            marker=dict(size=10, color=color, symbol="square"),
-            name=wnid_to_name.get(parent_id, parent_id),
-            legendgroup="parents",
-            showlegend=True,
-        )
-        fig.add_trace(legend_trace)
-
-    steps = []
-    total_traces = len(fig.data)
-    base_visibility = [trace.visible if isinstance(trace.visible, bool) else True for trace in fig.data]
-    data_trace_indices = [idx for indices in epoch_trace_indices.values() for idx in indices]
-
-    for epoch_name in epochs:
-        visible = base_visibility[:]
-        for idx in data_trace_indices:
-            visible[idx] = False
-        for idx in epoch_trace_indices[epoch_name]:
-            visible[idx] = True
-        steps.append(
-            dict(
-                method="update",
-                args=[{"visible": visible}, {"title": f"Token embeddings UMAP - {epoch_name}"}],
-                label=epoch_name,
-            )
-        )
-
-    fig.update_layout(
-        title=f"Token embeddings UMAP - {epochs[0]}",
-        xaxis_title="UMAP 1",
-        yaxis_title="UMAP 2",
-        legend_title_text="WordNet parent",
-        width=900,
-        height=700,
-        margin=dict(l=40, r=40, t=60, b=40),
-        sliders=[dict(active=0, currentvalue={"prefix": "Epoch: "}, pad={"t": 40}, steps=steps)],
-        uirevision="token-embeddings",
-    )
-
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
-        html_path = os.path.join(output_dir, "token_embeddings_umap.html")
-        fig.write_html(html_path)
-        print(f"Saved interactive UMAP visualization to {html_path}")
-    else:
-        print("No output directory provided; skipping HTML export")
+    try:
+        points_3d = _fit_umap(embeddings, n_components=3)
+        title_3d = f"UMAP 3D ({label}, {epoch_name})"
+        path_3d = os.path.join(output_dir, f"{epoch_name}_{label}_umap_3d.png")
+        save_scatter_3d(points_3d, colors, parents, parent_to_color, wnid_to_name, title_3d, path_3d)
+        print(f"  Saved {path_3d}")
+    except ValueError as err:
+        print(f"  Skipping 3D projection for {label}: {err}")
 
 
 def print_token_examples(regular_tokens: List[str], ood_tokens: List[str]) -> None:
-    """Log a brief snapshot of the selected tokens."""
     print("\nSample regular tokens:")
     for token in regular_tokens[:5]:
         print(f"  {token}")
@@ -524,11 +423,18 @@ def main() -> None:
         default="/users/sboppana/data/sboppana/multimodal_concept_mapping/data/imagenet",
         help="Path to ImageNet data directory containing WordNet hierarchy files",
     )
+    parser.add_argument(
+        "--epoch",
+        type=str,
+        default=None,
+        help="Specific epoch to visualise (e.g. 'initial' or 'epoch_10'). Defaults to final epoch",
+    )
 
     args = parser.parse_args()
 
     if args.output_dir is None:
         args.output_dir = os.path.join(args.results_dir, "plots")
+    os.makedirs(args.output_dir, exist_ok=True)
 
     print(f"Loading embeddings from {args.results_dir}")
     print(f"Saving plots to {args.output_dir}")
@@ -545,8 +451,8 @@ def main() -> None:
     print(f"OOD tokens selected: {len(ood_tokens)}")
     print_token_examples(regular_tokens, ood_tokens)
 
-    def averaged_embeddings(token_list: List[str]) -> Dict[str, torch.Tensor]:
-        return average_embeddings_for_tokens(tokenizer, embeddings_by_epoch, token_list)
+    def averaged_embeddings(tokens: List[str]) -> Dict[str, torch.Tensor]:
+        return average_embeddings_for_tokens(tokenizer, embeddings_by_epoch, tokens)
 
     ood_embeddings = averaged_embeddings(ood_tokens)
     regular_embeddings = averaged_embeddings(regular_tokens)
@@ -576,16 +482,60 @@ def main() -> None:
         print("No tokens available to visualise; exiting.")
         return
 
-    create_interactive_umap(
-        ood_embeddings,
-        regular_embeddings,
-        ood_tokens,
-        regular_tokens,
-        token_to_parent,
-        parent_to_color,
-        wnid_to_name,
-        args.output_dir,
-    )
+    target_epoch = select_epoch(embeddings_by_epoch, args.epoch)
+    print(f"\nTarget epoch for plots: {target_epoch}")
+
+    combined_embeddings = None
+    if ood_tokens and regular_tokens:
+        combined_embeddings = torch.cat([
+            ood_embeddings[target_epoch],
+            regular_embeddings[target_epoch],
+        ], dim=0)
+    elif ood_tokens:
+        combined_embeddings = ood_embeddings[target_epoch]
+    elif regular_tokens:
+        combined_embeddings = regular_embeddings[target_epoch]
+
+    print("\nGenerating Matplotlib UMAP figures...")
+
+    if combined_embeddings is not None and combined_embeddings.shape[0] >= 3:
+        save_umap_figures(
+            label="all_tokens",
+            epoch_name=target_epoch,
+            embeddings=combined_embeddings,
+            token_names=all_tokens,
+            token_to_color=token_to_color,
+            token_to_parent=token_to_parent,
+            parent_to_color=parent_to_color,
+            wnid_to_name=wnid_to_name,
+            output_dir=args.output_dir,
+        )
+
+    if regular_tokens and regular_embeddings.get(target_epoch) is not None:
+        save_umap_figures(
+            label="regular_tokens",
+            epoch_name=target_epoch,
+            embeddings=regular_embeddings[target_epoch],
+            token_names=regular_tokens,
+            token_to_color=token_to_color,
+            token_to_parent=token_to_parent,
+            parent_to_color=parent_to_color,
+            wnid_to_name=wnid_to_name,
+            output_dir=args.output_dir,
+        )
+
+    if ood_tokens and ood_embeddings.get(target_epoch) is not None:
+        save_umap_figures(
+            label="ood_tokens",
+            epoch_name=target_epoch,
+            embeddings=ood_embeddings[target_epoch],
+            token_names=ood_tokens,
+            token_to_color=token_to_color,
+            token_to_parent=token_to_parent,
+            parent_to_color=parent_to_color,
+            wnid_to_name=wnid_to_name,
+            output_dir=args.output_dir,
+        )
 
     print("\nAnalysis complete.")
 
