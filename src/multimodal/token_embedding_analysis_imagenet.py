@@ -19,6 +19,7 @@ from typing import Dict, Iterable, List, Tuple
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import torch
 import umap
 from transformers import AutoTokenizer
@@ -344,6 +345,7 @@ def _build_projection_dataframe(
     return pd.DataFrame(rows)
 
 
+
 def create_interactive_umap(
     ood_embeddings: Dict[str, torch.Tensor],
     regular_embeddings: Dict[str, torch.Tensor],
@@ -354,7 +356,7 @@ def create_interactive_umap(
     wnid_to_name: Dict[str, str],
     output_dir: str | None,
 ) -> None:
-    """Generate a single lightweight HTML report with an animated UMAP scatter plot."""
+    """Generate a lightweight HTML report with a slider-driven UMAP scatter plot."""
     token_names = ood_tokens + regular_tokens
     if len(token_names) < 3:
         print("Not enough tokens for UMAP visualization (need at least three). Skipping plot generation.")
@@ -380,36 +382,89 @@ def create_interactive_umap(
     token_types = ["OOD"] * len(ood_tokens) + ["Regular"] * len(regular_tokens)
     df = _build_projection_dataframe(epochs, projections, token_names, token_types, token_to_parent, wnid_to_name)
 
-    parent_color_map = {
-        wnid_to_name.get(parent, parent): color for parent, color in parent_to_color.items()
-    }
+    # Create lookup tables for per-token visuals
+    colors_by_token = {}
+    symbols_by_token = {}
+    for token, kind in zip(token_names, token_types):
+        parent_id = token_to_parent.get(token, token)
+        colors_by_token[token] = parent_to_color.get(parent_id, FALLBACK_COLOR)
+        symbols_by_token[token] = SYMBOL_MAP.get(kind, "circle")
 
-    fig = px.scatter(
-        df,
-        x="umap_x",
-        y="umap_y",
-        color="parent_name",
-        color_discrete_map=parent_color_map,
-        symbol="token_type",
-        symbol_map=SYMBOL_MAP,
-        hover_data={"token": True, "token_type": True, "parent_name": True},
-        animation_frame="epoch",
-        animation_group="token",
-        category_orders={
-            "epoch": epochs,
-            "token_type": [label for label in SYMBOL_MAP if label in token_types],
-        },
-    )
+    fig = go.Figure()
+    epoch_trace_indices: Dict[str, List[int]] = {epoch: [] for epoch in epochs}
 
-    fig.update_traces(marker=dict(size=8, line=dict(width=0.6, color="#1f2933")))
+    for epoch_name in epochs:
+        epoch_df = df[df["epoch"] == epoch_name]
+        trace = go.Scatter(
+            x=epoch_df["umap_x"],
+            y=epoch_df["umap_y"],
+            mode="markers",
+            marker=dict(
+                size=8,
+                color=[colors_by_token[token] for token in epoch_df["token"]],
+                symbol=[symbols_by_token[token] for token in epoch_df["token"]],
+                line=dict(width=0.6, color="#1f2933"),
+            ),
+            text=epoch_df["token"],
+            hovertemplate=(
+                "Token: %{text}<br>Type: %{customdata[0]}<br>Parent: %{customdata[1]}"
+                "<br>Epoch: %{customdata[2]}<extra></extra>"
+            ),
+            customdata=list(
+                zip(
+                    epoch_df["token_type"],
+                    epoch_df["parent_name"],
+                    epoch_df["epoch"],
+                )
+            ),
+            showlegend=False,
+            visible=(epoch_name == epochs[0]),
+            name=epoch_name,
+            legendgroup="epochs",
+        )
+        fig.add_trace(trace)
+        epoch_trace_indices[epoch_name].append(len(fig.data) - 1)
+
+    for parent_id, color in sorted(parent_to_color.items(), key=lambda item: wnid_to_name.get(item[0], item[0])):
+        legend_trace = go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(size=10, color=color, symbol="square"),
+            name=wnid_to_name.get(parent_id, parent_id),
+            legendgroup="parents",
+            showlegend=True,
+        )
+        fig.add_trace(legend_trace)
+
+    steps = []
+    total_traces = len(fig.data)
+    base_visibility = [trace.visible if isinstance(trace.visible, bool) else True for trace in fig.data]
+    data_trace_indices = [idx for indices in epoch_trace_indices.values() for idx in indices]
+
+    for epoch_name in epochs:
+        visible = base_visibility[:]
+        for idx in data_trace_indices:
+            visible[idx] = False
+        for idx in epoch_trace_indices[epoch_name]:
+            visible[idx] = True
+        steps.append(
+            dict(
+                method="update",
+                args=[{"visible": visible}, {"title": f"Token embeddings UMAP - {epoch_name}"}],
+                label=epoch_name,
+            )
+        )
+
     fig.update_layout(
-        title="Token embeddings UMAP",
+        title=f"Token embeddings UMAP - {epochs[0]}",
         xaxis_title="UMAP 1",
         yaxis_title="UMAP 2",
         legend_title_text="WordNet parent",
         width=900,
         height=700,
         margin=dict(l=40, r=40, t=60, b=40),
+        sliders=[dict(active=0, currentvalue={"prefix": "Epoch: "}, pad={"t": 40}, steps=steps)],
         uirevision="token-embeddings",
     )
 
